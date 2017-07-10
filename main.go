@@ -1,10 +1,7 @@
 package main
 
 import (
-"fmt"
-"time"
-"sync"
-"github.com/NadiaBat/permissionsChecker/httpServer"
+	"github.com/NadiaBat/permissionsChecker/http"
 )
 
 type message struct {
@@ -12,54 +9,12 @@ type message struct {
 }
 
 func main() {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
-
-	h := httpServer.Http{}
-	h.ServeHttp(&wg)
+	//var wg sync.WaitGroup
+	//wg.Add(1)
+	//defer wg.Wait()
+	h := http.Server{}
+	h.Serve()
 }
-
-
-
-
-
-
-func watersExamples()  {
-	channel := message{}
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	channel.isActive = make(chan int)
-
-	go func() {
-		defer wg.Done()
-		time.Sleep(time.Second)
-		channel.isActive <- 1200
-	}()
-
-	go func() {
-		defer wg.Done()
-		fmt.Println(<- channel.isActive)
-	}()
-
-	wg.Wait()
-	fmt.Println("-----------")
-}
-
-
-
-
-//func getMessage(i int) (message) {
-//	currentTime := time.Now().Format("Y-m-d H-i-s")
-//
-//	header := fmt.Sprintf("Header %g by %s", i, currentTime)
-//	text := fmt.Sprintf("Text %g by %s", i, currentTime)
-//
-//	return message{header, text, <- i}
-//}
-
-
 
 // bulk checker by user and operations
 
