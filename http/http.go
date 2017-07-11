@@ -7,25 +7,27 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"context"
 )
 
 type Server struct{}
 type handler struct{ wg *sync.WaitGroup }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	go func() {
-		switch r.URL.Path {
-		case "/check/":
-			result, _ := routeCheck(r)
-			w.Write(result)
-		default:
-		}
-	}()
+	switch r.URL.Path {
+	case "/check/":
+		result, _ := routeCheck(r)
+		w.Write(result)
+	default:
+	}
 }
 
 func (h Server) Serve() {
 	handler := handler{}
-	http.ListenAndServe(":9999", handler)
+	server := http.Server{Addr: ":9999", Handler: handler}
+
+	defer server.Shutdown(context.Background())
+	go server.ListenAndServe()
 }
 
 func routeCheck(r *http.Request) ([]byte, error) {
@@ -34,16 +36,9 @@ func routeCheck(r *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	permissions := rbac.Permissions{}
-	for _, actionName := range actions {
-		permissions = append(permissions, rbac.Permission{UserId: userId, ActionName: actionName})
-	}
+	permissions := rbac.BulkCheck(userId, actions)
+	result, err := json.Marshal(permissions)
 
-	checker := rbac.BulkCheck(permissions)
-
-	checker.Wg.Wait()
-
-	result, err := json.Marshal(checker.Permissions)
 	return result, err
 }
 

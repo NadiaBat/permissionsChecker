@@ -9,23 +9,23 @@ type Assignment struct {
 	itemName string
 }
 
-type Assignments *[]Assignment
+type Assignments []Assignment
 
-var permissions Assignments
+var assignments Assignments
 
-func GetAllPermissions(loadIfEmpty bool) Assignments {
-	if permissions == nil && loadIfEmpty {
+func GetAllAssignments(loadIfEmpty bool) Assignments {
+	if assignments == nil && loadIfEmpty {
 		Refresh()
 	}
 
-	return permissions
+	return assignments
 }
 
 func Refresh() {
 	mutex := sync.Mutex{}
 
 	mutex.Lock()
-	permissions = getFromDb()
+	assignments = getFromDb()
 	mutex.Unlock()
 }
 
