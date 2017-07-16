@@ -1,15 +1,15 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/NadiaBat/permissionsChecker/rbac"
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
-	"context"
 	"time"
-	"log"
 )
 
 type Server struct{}
@@ -34,7 +34,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) Shutdown(server http.Server) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	err := server.Shutdown(ctx)
@@ -42,7 +42,6 @@ func (s *Server) Shutdown(server http.Server) {
 		log.Fatalf("Server shutdown error: %s", err)
 	}
 }
-
 
 func routeCheck(r *http.Request) ([]byte, error) {
 	userId, actions, err := getParams(r)

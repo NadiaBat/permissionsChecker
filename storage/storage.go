@@ -5,38 +5,78 @@ import (
 )
 
 type Assignment struct {
-	userId   int
-	itemName string
+	UserId   int
+	ItemName string
+	Rule     string
+	Data     string
 }
+
+type PermissionItem struct {
+	Name     string
+	ItemType int
+	Rule     string
+	Data     string
+}
+
 // !!! одна копия!
-type Assignments []Assignment
+type Assignments map[string]Assignment
+
+type PermissionItems map[string]PermissionItem
 
 var assignments Assignments
+var permissionItems PermissionItems
 
 func GetAllAssignments(loadIfEmpty bool) Assignments {
 	if assignments == nil && loadIfEmpty {
-		Refresh()
+		RefreshAssignments()
 	}
 
 	return assignments
 }
 
-func Refresh() {
+func GetAllPermissionItems(loadIfEmpty bool) PermissionItems {
+	if permissionItems == nil && loadIfEmpty {
+		RefreshPermissionItems()
+	}
+
+	return permissionItems
+}
+
+func RefreshAssignments() {
 	mutex := sync.Mutex{}
 
 	mutex.Lock()
-	assignments = getFromDb()
+	assignments = getAssignmentsFromDb()
 	mutex.Unlock()
 }
 
-func getFromDb() Assignments {
+func RefreshPermissionItems() {
+	mutex := sync.Mutex{}
+
+	mutex.Lock()
+	permissionItems = getPermissionItemsFromDb()
+	mutex.Unlock()
+}
+
+func getAssignmentsFromDb() Assignments {
 	// implement loading from db
 	// get by user
 
-	a := Assignment{userId: 123, itemName: "123_name"}
-	b := Assignment{userId: 321, itemName: "321_name"}
+	a := Assignment{UserId: 123, ItemName: "123_name"}
+	b := Assignment{UserId: 321, ItemName: "321_name"}
 
-	return Assignments{a, b}
+	return Assignments{"123_name": a, "321_name": b}
+}
+
+func getPermissionItemsFromDb() PermissionItems {
+	a := make(PermissionItems)
+	a["ncc.region.access"] = PermissionItem{
+		Name:     "ncc.region.access",
+		ItemType: 0,
+		Rule:     nil,
+		Data:     nil}
+
+	return a
 }
 
 /*
@@ -51,4 +91,4 @@ All auth data:
 
 Грузить все данные не нужно в storage, нужны данныые только для пользователя
 
- */
+*/
