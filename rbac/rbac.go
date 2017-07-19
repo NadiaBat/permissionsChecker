@@ -1,6 +1,7 @@
 package rbac
 
 import (
+	"errors"
 	"github.com/NadiaBat/permissionsChecker/storage"
 	"strconv"
 	"sync"
@@ -50,7 +51,7 @@ func BulkCheck(userId int, actions []string, additionalParams map[string]string)
 }
 
 func getCheckingParams(userId int, additionalParams map[string]string) checkingParams {
-	params := checkingParams{userId: userId, region: nil, project: nil}
+	params := checkingParams{userId: userId, region: 0, project: 0}
 	for name, value := range additionalParams {
 		switch name {
 		case "region":
@@ -72,11 +73,15 @@ func checkAccess(actionName string, params checkingParams) bool {
 }
 
 func checkRecursively(itemName string, assignments storage.Assignments, params checkingParams) bool {
-	item := getItem(itemName)
+	item, error := getItem(itemName)
+	if error != nil {
+		return false
+	}
 	if !executeRule(item.Rule, params, item.Data) {
 	}
 
-	if assignments[itemName] {
+	_, isExists := assignments[itemName]
+	if !isExists {
 		assignment := assignments[itemName]
 		if executeRule(assignment.Rule, params, assignment.Data) {
 			return true
@@ -93,13 +98,14 @@ func checkRecursively(itemName string, assignments storage.Assignments, params c
 	return false
 }
 
-func getItem(name string) storage.PermissionItem {
+func getItem(name string) (storage.PermissionItem, error) {
 	allPermissionItems := storage.GetAllPermissionItems(true)
-	if allPermissionItems[name] {
-		return allPermissionItems[name]
+	_, isExists := allPermissionItems[name]
+	if isExists {
+		return allPermissionItems[name], nil
 	}
 
-	return nil
+	return storage.PermissionItem{}, errors.New("Permission item doesn`t exist")
 }
 
 func getParents(itemName string) map[int]string {

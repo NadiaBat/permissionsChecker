@@ -73,8 +73,8 @@ func getPermissionItemsFromDb() PermissionItems {
 	a["ncc.region.access"] = PermissionItem{
 		Name:     "ncc.region.access",
 		ItemType: 0,
-		Rule:     nil,
-		Data:     nil}
+		Rule:     "",
+		Data:     ""}
 
 	return a
 }
