@@ -73,8 +73,8 @@ func checkAccess(actionName string, params checkingParams) bool {
 }
 
 func checkRecursively(itemName string, assignments storage.Assignments, params checkingParams) bool {
-	item, error := getItem(itemName)
-	if error != nil {
+	item, err := getItem(itemName)
+	if err != nil {
 		return false
 	}
 	if !executeRule(item.Rule, params, item.Data) {

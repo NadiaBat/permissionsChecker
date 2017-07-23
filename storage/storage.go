@@ -18,49 +18,68 @@ type PermissionItem struct {
 	Data     string
 }
 
-// !!! одна копия!
 type Assignments map[string]Assignment
 
 type PermissionItems map[string]PermissionItem
 
-var assignments Assignments
-var permissionItems PermissionItems
+var assignments struct {
+	data  Assignments
+	mutex sync.Mutex
+}
+
+var permissionItems struct {
+	data  PermissionItems
+	mutex sync.Mutex
+}
+
+var testMode = false
+
+func SetTestMode(mode bool) {
+	testMode = mode
+}
 
 func GetAllAssignments(loadIfEmpty bool) Assignments {
-	if assignments == nil && loadIfEmpty {
+	if assignments.data == nil && loadIfEmpty {
 		RefreshAssignments()
 	}
 
-	return assignments
+	return assignments.data
 }
 
 func GetAllPermissionItems(loadIfEmpty bool) PermissionItems {
-	if permissionItems == nil && loadIfEmpty {
+	if permissionItems.data == nil && loadIfEmpty {
 		RefreshPermissionItems()
 	}
 
-	return permissionItems
+	return permissionItems.data
 }
 
 func RefreshAssignments() {
-	mutex := sync.Mutex{}
+	assignments.mutex.Lock()
 
-	mutex.Lock()
-	assignments = getAssignmentsFromDb()
-	mutex.Unlock()
+	if !testMode {
+		assignments.data = getAssignmentsFromDb()
+	} else {
+		assignments.data = getTestAssignmentsFromDb()
+	}
+
+	assignments.mutex.Unlock()
 }
 
 func RefreshPermissionItems() {
-	mutex := sync.Mutex{}
+	permissionItems.mutex.Lock()
 
-	mutex.Lock()
-	permissionItems = getPermissionItemsFromDb()
-	mutex.Unlock()
+	if !testMode {
+		permissionItems.data = getPermissionItemsFromDb()
+	} else {
+		permissionItems.data = getTestPermissionItemsFromDb()
+	}
+
+	permissionItems.mutex.Unlock()
 }
 
 func getAssignmentsFromDb() Assignments {
 	// implement loading from db
-	// get by user
 
 	a := Assignment{UserId: 123, ItemName: "123_name"}
 	b := Assignment{UserId: 321, ItemName: "321_name"}
@@ -69,6 +88,7 @@ func getAssignmentsFromDb() Assignments {
 }
 
 func getPermissionItemsFromDb() PermissionItems {
+	// implement loading from db
 	a := make(PermissionItems)
 	a["ncc.region.access"] = PermissionItem{
 		Name:     "ncc.region.access",
@@ -77,6 +97,19 @@ func getPermissionItemsFromDb() PermissionItems {
 		Data:     ""}
 
 	return a
+}
+
+func getTestAssignmentsFromDb() Assignments {
+	return GetAssignmentsMock()
+}
+
+func getTestPermissionItemsFromDb() PermissionItems {
+	return GetPermissionItemsMock()
+}
+
+// maybe not PermissionItems, only string list
+func getTestPermissionParentsFromDb() PermissionItems {
+	return GetPermissionParentsMock()
 }
 
 /*
