@@ -131,15 +131,43 @@ func getAssignmentsFromDb() Assignments {
 }
 
 func getPermissionItemsFromDb() PermissionItems {
-	// implement loading from db
-	a := make(PermissionItems)
-	a["ncc.region.access"] = PermissionItem{
-		Name:     "ncc.region.access",
-		ItemType: 0,
-		Rule:     "",
-		Data:     ""}
+	connection := Connection{}
+	db := connection.Init()
 
-	return a
+	res, err := db.Query("SELECT IFNULL(`name`, ''), " +
+		"IFNULL(`type`, 0), " +
+		"IFNULL(`biz_rule`, ''), " +
+		"IFNULL(`data`, '') " +
+		"FROM `auth_item`")
+
+	if err != nil {
+		panic(err)
+	}
+
+	currentName := ""
+	currentType := 0
+	currentRule := ""
+	currentData := ""
+
+	result := PermissionItems{}
+
+	for res.Next() {
+		err := res.Scan(&currentName, &currentType, &currentRule, &currentData)
+		if err != nil {
+			panic(err)
+		}
+		if len(currentName) == 0 {
+			continue
+		}
+
+		result[currentName] = PermissionItem{
+			Name:     currentName,
+			ItemType: currentType,
+			Rule:     currentRule,
+			Data:     currentData}
+	}
+
+	return result
 }
 
 func getTestAssignmentsFromDb() Assignments {
@@ -166,5 +194,7 @@ All auth data:
 3. From auth_assignments: assignments[user][item name] => assignment
 
 Грузить все данные не нужно в storage, нужны данныые только для пользователя
+
+!!! auth_users (find usages)
 
 */

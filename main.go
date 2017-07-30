@@ -15,13 +15,19 @@ type user struct {
 }
 
 func main() {
-	assignments := storage.GetAllAssignments(true)
-	userAssignments := assignments[200132743]
-	println(userAssignments.UserId)
+	//assignments := storage.GetAllAssignments(true)
+	//userAssignments := assignments[200132743]
+	//println(userAssignments.UserId)
+	//
+	//for _, assignment := range userAssignments.Items {
+	//	println(assignment.ItemName)
+	//}
 
-	for _, assignment := range userAssignments.Items {
-		println(assignment.ItemName)
+	permissionItems := storage.GetAllPermissionItems(true)
+	for key, item := range permissionItems {
+		println(key, item.Name, item.ItemType)
 	}
+
 	//
 	//h := http.Server{}
 	//h.Serve()
