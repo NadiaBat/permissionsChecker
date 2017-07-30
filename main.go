@@ -1,19 +1,30 @@
 package main
 
 import (
-	"github.com/NadiaBat/permissionsChecker/http"
+	//"github.com/NadiaBat/permissionsChecker/http"
+	"github.com/NadiaBat/permissionsChecker/storage"
 )
 
 type message struct {
 	isActive chan int
 }
 
+type user struct {
+	id  int
+	fio string
+}
+
 func main() {
-	//var wg sync.WaitGroup
-	//wg.Add(1)
-	//defer wg.Wait()
-	h := http.Server{}
-	h.Serve()
+	assignments := storage.GetAllAssignments(true)
+	userAssignments := assignments[200132743]
+	println(userAssignments.UserId)
+
+	for _, assignment := range userAssignments.Items {
+		println(assignment.ItemName)
+	}
+	//
+	//h := http.Server{}
+	//h.Serve()
 }
 
 // bulk checker by user and operations

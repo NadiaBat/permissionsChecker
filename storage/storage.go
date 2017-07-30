@@ -4,12 +4,21 @@ import (
 	"sync"
 )
 
+// @see table auth_assignment
 type Assignment struct {
-	UserId   int
 	ItemName string
 	Rule     string
 	Data     string
 }
+
+// grouped by item name auth assignments
+type UserAssignment struct {
+	UserId int
+	Items  map[string]Assignment
+}
+
+// grouped by user id user auth assignments
+type Assignments map[int]UserAssignment
 
 type PermissionItem struct {
 	Name     string
@@ -17,8 +26,6 @@ type PermissionItem struct {
 	Rule     string
 	Data     string
 }
-
-type Assignments map[string]Assignment
 
 type PermissionItems map[string]PermissionItem
 
@@ -79,12 +86,48 @@ func RefreshPermissionItems() {
 }
 
 func getAssignmentsFromDb() Assignments {
-	// implement loading from db
+	connection := Connection{}
+	db := connection.Init()
 
-	a := Assignment{UserId: 123, ItemName: "123_name"}
-	b := Assignment{UserId: 321, ItemName: "321_name"}
+	res, err := db.Query("SELECT IFNULL(`item_name`, ''), " +
+		"IFNULL(`user_id`, 0), " +
+		"IFNULL(`biz_rule`, ''), " +
+		"IFNULL(`data`, '') " +
+		"FROM `auth_assignment`")
 
-	return Assignments{"123_name": a, "321_name": b}
+	if err != nil {
+		panic(err)
+	}
+
+	currentUserId := 0
+	currentItemName := ""
+	currentRule := ""
+	currentData := ""
+
+	result := Assignments{}
+
+	for res.Next() {
+		err = res.Scan(&currentItemName, &currentUserId, &currentRule, &currentData)
+		if err != nil {
+			panic(err)
+		}
+		if currentUserId == 0 || len(currentItemName) == 0 {
+			continue
+		}
+
+		if result[currentUserId].UserId == 0 {
+			result[currentUserId] = UserAssignment{
+				UserId: currentUserId,
+				Items:  make(map[string]Assignment)}
+		}
+
+		result[currentUserId].Items[currentItemName] = Assignment{
+			ItemName: currentItemName,
+			Rule:     currentRule,
+			Data:     currentData}
+	}
+
+	return result
 }
 
 func getPermissionItemsFromDb() PermissionItems {

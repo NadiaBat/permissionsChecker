@@ -38,7 +38,7 @@ func GetPermissionParentsMock() PermissionItems {
 
 // from News_Permissions_Cache_AuthData, warmup (_data['assignments'])
 func GetAssignmentsMock() Assignments {
-	if (assignmentsMock == nil) {
+	if assignmentsMock == nil {
 		// get from file
 		data := []byte("")
 		err := json.Unmarshal(data, assignmentsMock)
