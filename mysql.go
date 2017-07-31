@@ -54,3 +54,117 @@ func (config MySQLConnectionConfig) GetDSN() string {
 	//)
 	return "ngs_regionnews:nae9be9eiW@tcp(192.168.134.144:3306)/ngs_regionnews"
 }
+
+func RefreshCache()  {
+	RefreshAssignments()
+	RefreshPermissionItems()
+}
+
+func RefreshAssignments() error {
+	var err error
+	Cache.assignments.Lock()
+	Cache.assignments.data, err = getAssignmentsFromDb()
+	Cache.assignments.Unlock()
+	return err
+}
+
+func RefreshPermissionItems() error {
+	var err error
+	Cache.permissionItems.Lock()
+	Cache.permissionItems.data, err = getPermissionItemsFromDb()
+	Cache.permissionItems.Unlock()
+	return err
+}
+
+func getAssignmentsFromDb() (Assignments, error) {
+	// как узнать пустая ли у тебя выборка?
+	rows, err := mysql.Query(
+		"SELECT IFNULL(`item_name`, ''), " +
+			"IFNULL(`user_id`, 0), " +
+			"IFNULL(`biz_rule`, ''), " +
+			"IFNULL(`data`, '') " +
+			"FROM `auth_assignment`",
+	)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Get all users assignments failed.")
+	}
+
+	result := Assignments{}
+	for rows.Next() {
+		var aRow AssignmentRow
+		err = rows.Scan(
+			&aRow.ItemName,
+			&aRow.UserId,
+			&aRow.Rule,
+			&aRow.Data,
+		)
+		if err != nil {
+			errors.Wrapf(err, "Assignment row scanning error.")
+		}
+
+		if aRow.UserId == 0 || len(aRow.ItemName) == 0 {
+			errors.Wrap(err, "Empty userId or itemName for assignment row.")
+			continue
+		}
+
+		_, exist := result[aRow.UserId]
+		if !exist {
+			result[aRow.UserId] = UserAssignment{
+				UserId: aRow.UserId,
+				Items:  make(map[string]Assignment),
+			}
+		}
+
+		result[aRow.UserId].Items[aRow.ItemName] = Assignment{
+			ItemName: aRow.ItemName,
+			Rule:     aRow.Rule,
+			Data:     aRow.Data,
+		}
+	}
+
+	return result, err
+}
+
+func getPermissionItemsFromDb() (PermissionItems, error) {
+	res, err := mysql.Query(
+		"SELECT IFNULL(`name`, ''), " +
+			"IFNULL(`type`, 0), " +
+			"IFNULL(`biz_rule`, ''), " +
+			"IFNULL(`data`, '') " +
+			"FROM `auth_item`",
+	)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Auth items getting failed.")
+	}
+
+	currentName := ""
+	currentType := 0
+	currentRule := ""
+	currentData := ""
+
+	items := PermissionItems{}
+
+	for res.Next() {
+		err := res.Scan(&currentName, &currentType, &currentRule, &currentData)
+		if err != nil {
+			errors.Wrapf(err, "Auth item row scanning error.")
+			continue
+		}
+
+		if len(currentName) == 0 {
+			errors.Wrapf(err, "Auth item name is empty.")
+			continue
+		}
+
+		items[currentName] = PermissionItem{
+			Name:     currentName,
+			ItemType: currentType,
+			Rule:     currentRule,
+			Data:     currentData,
+		}
+	}
+
+	return items, err
+}
