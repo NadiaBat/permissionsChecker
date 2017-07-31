@@ -1,4 +1,4 @@
-package storage
+package main
 
 import (
 	"sync"
@@ -29,6 +29,16 @@ type PermissionItem struct {
 
 type PermissionItems map[string]PermissionItem
 
+type AssignmentRow struct {
+	UserId   int
+	ItemName string
+	Rule     string
+	Data     string
+}
+
+type Cache struct {
+}
+
 var assignments struct {
 	data  Assignments
 	mutex sync.Mutex
@@ -37,12 +47,6 @@ var assignments struct {
 var permissionItems struct {
 	data  PermissionItems
 	mutex sync.Mutex
-}
-
-var testMode = false
-
-func SetTestMode(mode bool) {
-	testMode = mode
 }
 
 func GetAllAssignments(loadIfEmpty bool) Assignments {
@@ -61,84 +65,76 @@ func GetAllPermissionItems(loadIfEmpty bool) PermissionItems {
 	return permissionItems.data
 }
 
-func RefreshAssignments() {
+func RefreshAssignments() error {
+	var err error
 	assignments.mutex.Lock()
-
-	if !testMode {
-		assignments.data = getAssignmentsFromDb()
-	} else {
-		assignments.data = getTestAssignmentsFromDb()
-	}
-
+	assignments.data, err = getAssignmentsFromDb()
 	assignments.mutex.Unlock()
+	return err
 }
 
 func RefreshPermissionItems() {
 	permissionItems.mutex.Lock()
-
-	if !testMode {
-		permissionItems.data = getPermissionItemsFromDb()
-	} else {
-		permissionItems.data = getTestPermissionItemsFromDb()
-	}
-
+	permissionItems.data = getPermissionItemsFromDb()
 	permissionItems.mutex.Unlock()
 }
 
-func getAssignmentsFromDb() Assignments {
-	connection := Connection{}
-	db := connection.Init()
-
-	res, err := db.Query("SELECT IFNULL(`item_name`, ''), " +
-		"IFNULL(`user_id`, 0), " +
-		"IFNULL(`biz_rule`, ''), " +
-		"IFNULL(`data`, '') " +
-		"FROM `auth_assignment`")
+func getAssignmentsFromDb() (Assignments, error) {
+	// как узнать пустая ли у тебя выборка?
+	rows, err := mysql.Query(
+		"SELECT IFNULL(`item_name`, ''), " +
+			"IFNULL(`user_id`, 0), " +
+			"IFNULL(`biz_rule`, ''), " +
+			"IFNULL(`data`, '') " +
+			"FROM `auth_assignment`",
+	)
 
 	if err != nil {
 		panic(err)
 	}
 
-	currentUserId := 0
-	currentItemName := ""
-	currentRule := ""
-	currentData := ""
-
 	result := Assignments{}
-
-	for res.Next() {
-		err = res.Scan(&currentItemName, &currentUserId, &currentRule, &currentData)
+	for rows.Next() {
+		var aRow AssignmentRow
+		err = rows.Scan(
+			&aRow.ItemName,
+			&aRow.UserId,
+			&aRow.Rule,
+			&aRow.Data,
+		)
 		if err != nil {
 			panic(err)
 		}
-		if currentUserId == 0 || len(currentItemName) == 0 {
+		if aRow.UserId == 0 || len(aRow.ItemName) == 0 {
 			continue
 		}
 
-		if result[currentUserId].UserId == 0 {
-			result[currentUserId] = UserAssignment{
-				UserId: currentUserId,
-				Items:  make(map[string]Assignment)}
+		_, exist := result[aRow.UserId]
+		if !exist {
+			result[aRow.UserId] = UserAssignment{
+				UserId: aRow.UserId,
+				Items:  make(map[string]Assignment),
+			}
 		}
 
-		result[currentUserId].Items[currentItemName] = Assignment{
-			ItemName: currentItemName,
-			Rule:     currentRule,
-			Data:     currentData}
+		result[aRow.UserId].Items[aRow.ItemName] = Assignment{
+			ItemName: aRow.ItemName,
+			Rule:     aRow.Rule,
+			Data:     aRow.Data,
+		}
 	}
 
-	return result
+	return result, nil
 }
 
 func getPermissionItemsFromDb() PermissionItems {
-	connection := Connection{}
-	db := connection.Init()
-
-	res, err := db.Query("SELECT IFNULL(`name`, ''), " +
-		"IFNULL(`type`, 0), " +
-		"IFNULL(`biz_rule`, ''), " +
-		"IFNULL(`data`, '') " +
-		"FROM `auth_item`")
+	res, err := mysql.Query(
+		"SELECT IFNULL(`name`, ''), " +
+			"IFNULL(`type`, 0), " +
+			"IFNULL(`biz_rule`, ''), " +
+			"IFNULL(`data`, '') " +
+			"FROM `auth_item`",
+	)
 
 	if err != nil {
 		panic(err)

@@ -1,8 +1,8 @@
 package main
 
 import (
-	//"github.com/NadiaBat/permissionsChecker/http"
-	"github.com/NadiaBat/permissionsChecker/storage"
+	"database/sql"
+	"log"
 )
 
 type message struct {
@@ -14,7 +14,23 @@ type user struct {
 	fio string
 }
 
+var (
+	mysql *sql.DB
+)
+
 func main() {
+	// ВСЕГДА ПРОВЕРЯТЬ ВОЗВРАЩАЕМЫЕ ОШИБКИ!!!1
+
+	config := &MySQLConnectionConfig{
+		Host: "",
+		Port: 3306,
+	}
+	var err error
+	mysql, err = NewMySQL(config)
+	if err != nil {
+		log.Fatalf("Mysql error: %s", err)
+	}
+
 	//assignments := storage.GetAllAssignments(true)
 	//userAssignments := assignments[200132743]
 	//println(userAssignments.UserId)
@@ -23,7 +39,7 @@ func main() {
 	//	println(assignment.ItemName)
 	//}
 
-	permissionItems := storage.GetAllPermissionItems(true)
+	permissionItems := GetAllPermissionItems(true)
 	for key, item := range permissionItems {
 		println(key, item.Name, item.ItemType)
 	}

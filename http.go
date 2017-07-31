@@ -1,24 +1,27 @@
-package http
+package main
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"github.com/NadiaBat/permissionsChecker/rbac"
 	"log"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type Server struct{}
-type handler struct{ wg *sync.WaitGroup }
+type handler struct{}
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/check/":
-		result, _ := routeCheck(r)
+		w.Header().Set("Content-Type", "application/json")
+		result, err := handlerCheck(r)
+		if err != nil {
+			w.Write([]byte(err.Error()))
+		}
 		w.Write(result)
 	default:
 	}
@@ -43,14 +46,18 @@ func (s *Server) Shutdown(server http.Server) {
 	}
 }
 
-func routeCheck(r *http.Request) ([]byte, error) {
+func handlerCheck(r *http.Request) ([]byte, error) {
 	userId, actions, err := getParams(r)
 	if err != nil {
 		return nil, err
 	}
 
-	permissions := rbac.BulkCheck(userId, actions)
+	permissions := BulkCheck(userId, actions, nil)
 	result, err := json.Marshal(permissions)
+	if err != nil {
+		return result, errors.Wrap(err, "Permissions object "+
+			"to json marshal failed")
+	}
 
 	return result, err
 }
