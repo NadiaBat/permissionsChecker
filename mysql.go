@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
+	"fmt"
 )
 
 type MySQLConnectionConfig struct {
@@ -14,8 +15,8 @@ type MySQLConnectionConfig struct {
 	User       string `yaml:"user"`
 	Password   string `yaml:"password"`
 	Parameters struct {
-		MaxIdleConns int
-		MaxOpenConns int
+		MaxIdleConns int `yaml:"max_idle_conns"`
+		MaxOpenConns int `yaml:"max_open_conns"`
 	} `yaml:"parameters"`
 }
 
@@ -45,14 +46,14 @@ func openDBConnection(config *MySQLConnectionConfig) (*sql.DB, error) {
 }
 
 func (config MySQLConnectionConfig) GetDSN() string {
-	//return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true",
-	//	config.User,
-	//	config.Password,
-	//	config.Host,
-	//	config.Port,
-	//	config.Base,
-	//)
-	return "ngs_regionnews:nae9be9eiW@tcp(192.168.134.144:3306)/ngs_regionnews"
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true",
+		config.User,
+		config.Password,
+		config.Host,
+		config.Port,
+		config.Base,
+	)
+	//return "ngs_regionnews:nae9be9eiW@tcp(192.168.134.144:3306)/ngs_regionnews"
 }
 
 func RefreshCache() {

@@ -5,6 +5,7 @@ import (
 	"log"
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
+	"github.com/pkg/errors"
 )
 
 type message struct {
@@ -25,16 +26,18 @@ func main() {
 
 	configFile, err := ioutil.ReadFile("config.yml")
 	if err != nil {
-		log.Fatal("Can`t read config.yml.")
+		log.Fatal(errors.Wrap(err, "Can`t read config.yml."))
 	}
-print(configFile)
-	var config MySQLConnectionConfig
+
+	config := MySQLConnectionConfig{}
 	err = yaml.Unmarshal(configFile, &config)
-println(config.Base)
+
 	mysql, err = NewMySQL(&config)
 	if err != nil {
-		log.Fatalf("Mysql error: %s", err)
+		log.Fatal(errors.Wrap(err, "Mysql error."))
 	}
+
+	RefreshCache()
 
 	//assignments := storage.GetAllAssignments(true)
 	//userAssignments := assignments[200132743]

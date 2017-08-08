@@ -1,8 +1,8 @@
-Host: '192.168.134.144'
-Port: '3306'
-Base: 'ngs_regionnews'
-User: 'ngs_regionnews'
-Password: 'nae9be9eiW'
-Parameters:
-    MaxIdleConns: 100
-    MaxOpenConns: 100
+host: '192.168.134.144'
+port: 3306
+base: 'ngs_regionnews'
+user: 'ngs_regionnews'
+password: 'nae9be9eiW'
+parameters:
+    max_idle_conns: 100
+    max_open_conns: 100
