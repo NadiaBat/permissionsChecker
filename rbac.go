@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/pkg/errors"
 	"strconv"
 	"sync"
 )
@@ -24,13 +25,18 @@ type Checker struct {
 	permissions Permissions
 }
 
-func BulkCheck(userId int, actions []string, additionalParams map[string]string) Permissions {
+func BulkCheck(userId int, actions []string, additionalParams map[string]string) (Permissions, error) {
 	checker := &Checker{
 		permissions: make(Permissions, len(actions)),
 	}
 
-	params := getCheckingParams(userId, additionalParams)
+	params, err := getCheckingParams(userId, additionalParams)
+	if err != nil {
+		return nil, errors.Wrap(err, "Не удалось выполнить проверку.")
+	}
 
+	// @todo probably, should not have async checking
+	// only for several users (unlikely case)
 	for _, action := range actions {
 		checker.Add(1)
 
@@ -44,26 +50,31 @@ func BulkCheck(userId int, actions []string, additionalParams map[string]string)
 
 	checker.Wait()
 
-	return checker.permissions
+	return checker.permissions, nil
 }
 
-func getCheckingParams(userId int, additionalParams map[string]string) checkingParams {
+func getCheckingParams(userId int, additionalParams map[string]string) (*checkingParams, error) {
 	params := checkingParams{userId: userId, region: 0, project: 0}
+	var err error
 	for name, value := range additionalParams {
 		switch name {
 		case "region":
-			params.region, _ = strconv.Atoi(value)
+			params.region, err = strconv.Atoi(value)
 		case "project":
-			params.project, _ = strconv.Atoi(value)
+			params.project, err = strconv.Atoi(value)
 		default:
 			continue
 		}
 	}
 
-	return params
+	if err != nil {
+		return nil, err
+	}
+
+	return &params, nil
 }
 
-func checkAccess(actionName string, params checkingParams) bool {
+func checkAccess(actionName string, params *checkingParams) bool {
 	// implement checking logic
 	//allAssignments := GetAllAssignments(true)
 	//return checkRecursively(actionName, allAssignments, params)

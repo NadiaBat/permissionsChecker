@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"log"
+	"io/ioutil"
+	"gopkg.in/yaml.v2"
 )
 
 type message struct {
@@ -21,12 +23,15 @@ var (
 func main() {
 	// ВСЕГДА ПРОВЕРЯТЬ ВОЗВРАЩАЕМЫЕ ОШИБКИ!!!1
 
-	config := &MySQLConnectionConfig{
-		Host: "",
-		Port: 3306,
+	configFile, err := ioutil.ReadFile("config.yml")
+	if err != nil {
+		log.Fatal("Can`t read config.yml.")
 	}
-	var err error
-	mysql, err = NewMySQL(config)
+print(configFile)
+	var config MySQLConnectionConfig
+	err = yaml.Unmarshal(configFile, &config)
+println(config.Base)
+	mysql, err = NewMySQL(&config)
 	if err != nil {
 		log.Fatalf("Mysql error: %s", err)
 	}
@@ -39,10 +44,10 @@ func main() {
 	//	println(assignment.ItemName)
 	//}
 
-	permissionItems := GetAllPermissionItems(true)
-	for key, item := range permissionItems {
-		println(key, item.Name, item.ItemType)
-	}
+	//permissionItems := GetAllPermissionItems()
+	//for key, item := range permissionItems {
+	//	println(key, item.Name, item.ItemType)
+	//}
 
 	//
 	//h := http.Server{}

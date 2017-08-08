@@ -49,10 +49,14 @@ func (s *Server) Shutdown(server http.Server) {
 func handlerCheck(r *http.Request) ([]byte, error) {
 	userId, actions, err := getParams(r)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Can`t get params.")
 	}
 
-	permissions := BulkCheck(userId, actions, nil)
+	permissions, err := BulkCheck(userId, actions, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can`t execute bulk checking.")
+	}
+
 	result, err := json.Marshal(permissions)
 	if err != nil {
 		return result, errors.Wrap(err, "Permissions object "+
@@ -67,16 +71,16 @@ func getParams(r *http.Request) (int, []string, error) {
 
 	actions := params["actions[]"]
 	if actions == nil || len(actions) == 0 {
-		return nil, nil, errors.New("Обязательный параметр actions должен быть не пустым массивом.")
+		return 0, nil, errors.New("Обязательный параметр actions должен быть не пустым массивом.")
 	}
 
 	userId, err := strconv.Atoi(params["userId"][0])
 	if err != nil {
-		return nil, actions, err
+		return 0, actions, errors.Wrap(err, "Can`t get userId.")
 	}
 
 	if userId == 0 {
-		return nil, actions, errors.New("Обязательный параметр userId должен быть больше нуля.")
+		return 0, actions, errors.New("User can`t be 0.")
 	}
 
 	return userId, actions, nil

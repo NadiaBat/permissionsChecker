@@ -55,7 +55,7 @@ func (config MySQLConnectionConfig) GetDSN() string {
 	return "ngs_regionnews:nae9be9eiW@tcp(192.168.134.144:3306)/ngs_regionnews"
 }
 
-func RefreshCache()  {
+func RefreshCache() {
 	RefreshAssignments()
 	RefreshPermissionItems()
 }
