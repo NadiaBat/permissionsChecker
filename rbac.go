@@ -41,8 +41,8 @@ func BulkCheck(userId int, actions []string, additionalParams map[string]string)
 		checker.Add(1)
 
 		permission := &Permission{UserId: userId, ActionName: action}
-		go func(permissions *Permission) {
-			permission.HasAccess = checkAccess(permission.ActionName, params)
+		go func(permission *Permission) {
+			permission.HasAccess = checkAccess(userId, permission.ActionName, params)
 			checker.permissions = append(checker.permissions, permission)
 			checker.Done()
 		}(permission)
@@ -74,10 +74,25 @@ func getCheckingParams(userId int, additionalParams map[string]string) (*checkin
 	return &params, nil
 }
 
-func checkAccess(actionName string, params *checkingParams) bool {
-	// implement checking logic
-	//allAssignments := GetAllAssignments(true)
-	//return checkRecursively(actionName, allAssignments, params)
+func checkAccess(userId int, actionName string, params *checkingParams) bool {
+	// implement recursive logic here
+	allAssignments := GetAllAssignments()
+	userAssignments, userHasAssignments := allAssignments[userId]
+	if !userHasAssignments {
+		return false
+	}
+
+	item, userHasAction := userAssignments.Items[actionName]
+	if !userHasAction {
+		return false
+	}
+
+	if len(item.Rule) == 0 {
+		return true
+	}
+
+	// execute Rule with Data arg
+
 	return false
 }
 

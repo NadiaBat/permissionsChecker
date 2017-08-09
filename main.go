@@ -22,8 +22,6 @@ var (
 )
 
 func main() {
-	// ВСЕГДА ПРОВЕРЯТЬ ВОЗВРАЩАЕМЫЕ ОШИБКИ!!!1
-
 	configFile, err := ioutil.ReadFile("config.yml")
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Can`t read config.yml."))
@@ -31,6 +29,9 @@ func main() {
 
 	config := MySQLConnectionConfig{}
 	err = yaml.Unmarshal(configFile, &config)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Yaml config decoding error."))
+	}
 
 	mysql, err = NewMySQL(&config)
 	if err != nil {
@@ -38,6 +39,18 @@ func main() {
 	}
 
 	RefreshCache()
+
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Can`t find user assignments"))
+	}
+
+	additionalParams := make(map[string]string)
+	additionalParams["region"] = "54"
+	additionalParams["project"] = "1"
+
+	actions := []string{"ncc.unblock.record.access"}
+	res, err := BulkCheck(223814181, actions, additionalParams)
+	println(res)
 
 	//assignments := storage.GetAllAssignments(true)
 	//userAssignments := assignments[200132743]
