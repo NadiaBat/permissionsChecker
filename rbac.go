@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"strconv"
 	"sync"
+	"fmt"
 )
 
 type Permission struct {
@@ -16,6 +17,7 @@ type checkingParams struct {
 	userId  int
 	region  int
 	project int
+	isCommercial bool
 }
 
 type Permissions []*Permission
@@ -75,25 +77,88 @@ func getCheckingParams(userId int, additionalParams map[string]string) (*checkin
 }
 
 func checkAccess(userId int, actionName string, params *checkingParams) bool {
-	// implement recursive logic here
+	userAssignments, err := getUserAssignments(userId)
+	if err != nil {
+		return false
+	}
+
+}
+
+func getUserAssignments(userId int) (map[string]Assignment, error) {
 	allAssignments := GetAllAssignments()
-	userAssignments, userHasAssignments := allAssignments[userId]
-	if !userHasAssignments {
+	userAssignments, ok := allAssignments[userId]
+	if !ok {
+		return nil, errors.New("User assignments doesn`t exists.")
+	}
+
+	return userAssignments.Items, nil
+
+}
+
+func checkAccsessRecursive(
+	userId int, itemName string, params *checkingParams, assignments map[string]Assignment,
+) bool {
+	permissionItem, err := getPermissionItem(itemName)
+	if err != nil {
 		return false
 	}
 
-	item, userHasAction := userAssignments.Items[actionName]
-	if !userHasAction {
+	if !executeRule(permissionItem.Rule, params, permissionItem.Data) {
 		return false
 	}
 
-	if len(item.Rule) == 0 {
+	itemAssignment, ok := assignments[itemName]
+	if ok {
+		if executeRule(itemAssignment.Rule, params, itemAssignment.Data) {
+			return true
+		}
+	}
+
+	parents, err := getParents(itemName)
+	if err != nil {
+		return false
+	}
+
+	for _, parentItem := range parents {
+		if checkAccsessRecursive(userId, parentItem, params, assignments) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func getPermissionItem(name string) (PermissionItem, error) {
+	allPermissionItems := GetAllPermissionItems()
+	permissionItem, ok := allPermissionItems[name]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("There is no permission item %s", name))
+	}
+
+	return permissionItem, nil
+}
+
+func getParents(childName string) (ItemParents, error) {
+	allParents := GetAllParents()
+	itemParents, ok := allParents[childName]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("There is no parents for item %s", childName))
+	}
+
+	return itemParents, nil
+}
+
+func executeRule(rule string, params *checkingParams, data string) bool {
+	if len(rule) == 0 {
 		return true
 	}
 
-	// execute Rule with Data arg
+	// @TODO there is only 1 rule (isCommercial = 1)
+	if rule != "News_Permissions_Rules::inArray" {
+		return false
+	}
 
-	return false
+	return params.isCommercial
 }
 
 //func checkRecursively(itemName string, assignments Assignments, params checkingParams) bool {

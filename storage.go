@@ -36,6 +36,10 @@ type AssignmentRow struct {
 	Data     string
 }
 
+type ItemParents []string
+
+type AllParents map[string]ItemParents
+
 var Cache struct {
 	assignments struct {
 		sync.Mutex
@@ -45,6 +49,10 @@ var Cache struct {
 		sync.Mutex
 		data PermissionItems
 	}
+	parents struct {
+		sync.Mutex
+		data AllParents
+	}
 }
 
 func GetAllAssignments() Assignments {
@@ -53,6 +61,10 @@ func GetAllAssignments() Assignments {
 
 func GetAllPermissionItems() PermissionItems {
 	return Cache.permissionItems.data
+}
+
+func GetAllParents() AllParents {
+	return Cache.parents.data
 }
 
 /*

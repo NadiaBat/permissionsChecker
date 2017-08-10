@@ -2,10 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"log"
-	"io/ioutil"
-	"gopkg.in/yaml.v2"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"log"
 )
 
 type message struct {
