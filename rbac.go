@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"strconv"
 	"sync"
-	"fmt"
 )
 
 type Permission struct {
@@ -14,9 +14,9 @@ type Permission struct {
 }
 
 type checkingParams struct {
-	userId  int
-	region  int
-	project int
+	userId       int
+	region       int
+	project      int
 	isCommercial bool
 }
 
@@ -82,6 +82,7 @@ func checkAccess(userId int, actionName string, params *checkingParams) bool {
 		return false
 	}
 
+	return checkAccessRecursive(userId, actionName, params, userAssignments)
 }
 
 func getUserAssignments(userId int) (map[string]Assignment, error) {
@@ -95,7 +96,7 @@ func getUserAssignments(userId int) (map[string]Assignment, error) {
 
 }
 
-func checkAccsessRecursive(
+func checkAccessRecursive(
 	userId int, itemName string, params *checkingParams, assignments map[string]Assignment,
 ) bool {
 	permissionItem, err := getPermissionItem(itemName)
@@ -120,7 +121,7 @@ func checkAccsessRecursive(
 	}
 
 	for _, parentItem := range parents {
-		if checkAccsessRecursive(userId, parentItem, params, assignments) {
+		if checkAccessRecursive(userId, parentItem, params, assignments) {
 			return true
 		}
 	}
@@ -128,14 +129,14 @@ func checkAccsessRecursive(
 	return false
 }
 
-func getPermissionItem(name string) (PermissionItem, error) {
+func getPermissionItem(name string) (*PermissionItem, error) {
 	allPermissionItems := GetAllPermissionItems()
 	permissionItem, ok := allPermissionItems[name]
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("There is no permission item %s", name))
 	}
 
-	return permissionItem, nil
+	return &permissionItem, nil
 }
 
 func getParents(childName string) (ItemParents, error) {
@@ -154,60 +155,9 @@ func executeRule(rule string, params *checkingParams, data string) bool {
 	}
 
 	// @TODO there is only 1 rule (isCommercial = 1)
-	if rule != "News_Permissions_Rules::inArray" {
+	if rule != "News_Permissions_Rules::inArray" || len(data) == 0 {
 		return false
 	}
 
 	return params.isCommercial
 }
-
-//func checkRecursively(itemName string, assignments Assignments, params checkingParams) bool {
-//	item, err := getItem(itemName)
-//	if err != nil {
-//		return false
-//	}
-//	if !executeRule(item.Rule, params, item.Data) {
-//	}
-//
-//	_, isExists := assignments[itemName]
-//	if !isExists {
-//		assignment := assignments[itemName]
-//		if executeRule(assignment.Rule, params, assignment.Data) {
-//			return true
-//		}
-//	}
-//
-//	parents := getParents(itemName)
-//	for _, parent := range parents {
-//		if checkRecursively(parent, assignments, params) {
-//			return true
-//		}
-//	}
-//
-//	return false
-//}
-//
-//func getItem(name string) (PermissionItem, error) {
-//	allPermissionItems := GetAllPermissionItems(true)
-//	_, isExists := allPermissionItems[name]
-//	if isExists {
-//		return allPermissionItems[name], nil
-//	}
-//	return PermissionItem{}, errors.New("Permission item doesn`t exist")
-//}
-//
-//func getParents(itemName string) map[int]string {
-//	// get parents
-//	// see News_Permissions_Cache_AuthData::getParent
-//	result := make(map[int]string)
-//	result[0] = "123"
-//	result[1] = "222"
-//
-//	return result
-//}
-//
-//func executeRule(rule string, params checkingParams, data string) bool {
-//	// execute rule by params and data
-//	// see News_Permission_Checker::executeRule
-//	return true
-//}

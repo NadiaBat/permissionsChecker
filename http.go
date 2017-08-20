@@ -33,7 +33,7 @@ func (s *Server) Serve() {
 
 	defer s.Shutdown(server)
 
-	go server.ListenAndServe()
+	server.ListenAndServe()
 }
 
 func (s *Server) Shutdown(server http.Server) {
