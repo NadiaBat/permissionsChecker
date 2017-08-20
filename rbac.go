@@ -39,18 +39,35 @@ func BulkCheck(userId int, actions []string, additionalParams map[string]string)
 
 	// @todo probably, should not have async checking
 	// only for several users (unlikely case)
+	var errs []error
 	for _, action := range actions {
 		checker.Add(1)
 
 		permission := &Permission{UserId: userId, ActionName: action}
-		go func(permission *Permission) {
-			permission.HasAccess = checkAccess(userId, permission.ActionName, params)
+		go func(permission *Permission, errs *[]error) {
+			var checkingErr error
+			permission.HasAccess, checkingErr = checkAccess(userId, permission.ActionName, params)
+
+			if checkingErr != nil {
+				checkingErr = errors.Wrapf(
+					checkingErr,
+					"Can`t execute checking for userId=%d, actionName=%s",
+					permission.UserId,
+					permission.ActionName,
+				)
+
+				*errs = append(*errs, checkingErr)
+			}
 			checker.permissions = append(checker.permissions, permission)
+
 			checker.Done()
-		}(permission)
+		}(permission, &errs)
 	}
 
 	checker.Wait()
+	if len(errs) > 0 {
+		return checker.permissions, errs[0]
+	}
 
 	return checker.permissions, nil
 }
@@ -76,13 +93,13 @@ func getCheckingParams(userId int, additionalParams map[string]string) (*checkin
 	return &params, nil
 }
 
-func checkAccess(userId int, actionName string, params *checkingParams) bool {
+func checkAccess(userId int, actionName string, params *checkingParams) (bool, error) {
 	userAssignments, err := getUserAssignments(userId)
 	if err != nil {
-		return false
+		return false, errors.Wrap(err, "Can`t get user assignments.")
 	}
 
-	return checkAccessRecursive(userId, actionName, params, userAssignments)
+	return checkAccessRecursive(userId, actionName, params, userAssignments), nil
 }
 
 func getUserAssignments(userId int) (map[string]Assignment, error) {
