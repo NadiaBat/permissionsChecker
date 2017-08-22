@@ -74,7 +74,12 @@ func getParams(r *http.Request) (int, []string, error) {
 		return 0, nil, errors.New("Обязательный параметр actions должен быть не пустым массивом.")
 	}
 
-	userId, err := strconv.Atoi(params["userId"][0])
+	userFromQuery := params["userId"]
+	if userFromQuery == nil {
+		return 0, actions, errors.New("Не задан обязательный параметр userId.")
+	}
+
+	userId, err := strconv.Atoi(userFromQuery[0])
 	if err != nil {
 		return 0, actions, errors.Wrap(err, "Can`t get userId.")
 	}
