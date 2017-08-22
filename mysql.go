@@ -53,12 +53,12 @@ func (config MySQLConnectionConfig) GetDSN() string {
 		config.Port,
 		config.Base,
 	)
-	//return "ngs_regionnews:nae9be9eiW@tcp(192.168.134.144:3306)/ngs_regionnews"
 }
 
 func RefreshCache() {
 	RefreshAssignments()
 	RefreshPermissionItems()
+	RefreshParents()
 }
 
 func RefreshAssignments() error {
@@ -74,6 +74,14 @@ func RefreshPermissionItems() error {
 	Cache.permissionItems.Lock()
 	Cache.permissionItems.data, err = getPermissionItemsFromDb()
 	Cache.permissionItems.Unlock()
+	return err
+}
+
+func RefreshParents() error {
+	var err error
+	Cache.parents.Lock()
+	Cache.parents.data, err = getParentsFromDb()
+	Cache.parents.Unlock()
 	return err
 }
 
@@ -168,4 +176,31 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 	}
 
 	return items, err
+}
+
+func getParentsFromDb() (AllParents, error) {
+	res, err := mysql.Query("SELECT `child`, `parent` FROM `auth_item_child`")
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Parents getting failed.")
+	}
+
+	currentChild := ""
+	currentParent := ""
+	parents := AllParents{}
+	for res.Next() {
+		err := res.Scan(&currentChild, &currentParent)
+		if err != nil {
+			return nil,errors.Wrapf(
+				err,
+				"Auth item row scanning error with child %s and parent %s.",
+				currentChild,
+				currentParent,
+			)
+		}
+
+		parents[currentChild] = append(parents[currentChild], currentParent)
+	}
+
+	return parents, nil
 }

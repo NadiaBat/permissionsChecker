@@ -29,7 +29,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) Serve() {
 	handler := handler{}
-	server := http.Server{Addr: ":9999", Handler: handler}
+	server := http.Server{Addr: ":8888", Handler: handler}
 
 	defer s.Shutdown(server)
 
@@ -41,7 +41,7 @@ func (s *Server) Shutdown(server http.Server) {
 	defer cancel()
 
 	err := server.Shutdown(ctx)
-	if err == nil {
+	if err != nil {
 		log.Fatalf("Server shutdown error: %s", err)
 	}
 }
