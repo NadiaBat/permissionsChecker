@@ -15,7 +15,7 @@ func GetPermissionItemsMock() PermissionItems {
 		data := []byte("")
 		err := json.Unmarshal(data, permissionItemsMock)
 		if err != nil {
-			panic("Mock permissions data decoding error.")
+			panic("Mock permissions Data decoding error.")
 		}
 	}
 
@@ -29,7 +29,7 @@ func GetPermissionParentsMock() PermissionItems {
 		data := []byte("")
 		err := json.Unmarshal(data, permissionParentsMock)
 		if err != nil {
-			panic("Mock permission parents data decoding error.")
+			panic("Mock permission parents Data decoding error.")
 		}
 	}
 
