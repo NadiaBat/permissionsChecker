@@ -27,6 +27,7 @@ type Checker struct {
 	permissions Permissions
 }
 
+// @TODO 3
 func BulkCheck(userId int, actions []string, additionalParams map[string]string) (Permissions, error) {
 	checker := &Checker{
 		permissions: make(Permissions, len(actions)),
@@ -37,8 +38,7 @@ func BulkCheck(userId int, actions []string, additionalParams map[string]string)
 		return nil, errors.Wrap(err, "Не удалось выполнить проверку.")
 	}
 
-	// @todo probably, should not have async checking
-	// only for several users (unlikely case)
+	// @TODO 4
 	var errs []error
 	for _, action := range actions {
 		checker.Add(1)
@@ -72,6 +72,7 @@ func BulkCheck(userId int, actions []string, additionalParams map[string]string)
 	return checker.permissions, nil
 }
 
+// return checking params from additional params
 func getCheckingParams(userId int, additionalParams map[string]string) (*checkingParams, error) {
 	params := checkingParams{userId: userId, region: 0, project: 0}
 	var err error
@@ -93,15 +94,32 @@ func getCheckingParams(userId int, additionalParams map[string]string) (*checkin
 	return &params, nil
 }
 
+// check access for user and action name
 func checkAccess(userId int, actionName string, params *checkingParams) (bool, error) {
 	userAssignments, err := getUserAssignments(userId)
 	if err != nil {
-		return false, errors.Wrap(err, "Can`t get user assignments.")
+		return false, errors.Wrapf(
+			err,
+			"Can`t get user assignments. User id is %d. Action name is \"%s\".",
+			userId,
+			actionName,
+		)
 	}
 
-	return checkAccessRecursive(userId, actionName, params, userAssignments), nil
+	hasAccess, err := checkAccessRecursive(userId, actionName, params, userAssignments)
+	if err != nil {
+		return false, errors.Wrapf(
+			err,
+			"Recursive checking access error. User id is %d. Action name is \"%s\".",
+			userId,
+			actionName,
+		)
+	}
+
+	return hasAccess, nil
 }
 
+// return all user assignments or error in case of user assignments doesn`t exist
 func getUserAssignments(userId int) (map[string]Assignment, error) {
 	allAssignments := GetAllAssignments()
 	userAssignments, ok := allAssignments[userId]
@@ -113,39 +131,73 @@ func getUserAssignments(userId int) (map[string]Assignment, error) {
 
 }
 
+// check access recursive
+// get all parents items for checking item while there is no any parents items or access is permitted
 func checkAccessRecursive(
 	userId int, itemName string, params *checkingParams, assignments map[string]Assignment,
-) bool {
-	permissionItem, err := getPermissionItem(itemName)
+) (bool, error) {
+	var err error
+	var permissionItem *PermissionItem
+	permissionItem, err = getPermissionItem(itemName)
 	if err != nil {
-		return false
+		return false, errors.Wrapf(
+			err,
+			"Getting permission item error. Item name is \"%s\".",
+			itemName,
+		)
 	}
 
-	if !executeRule(permissionItem.Rule, params, permissionItem.Data) {
-		return false
+	var hasAccess bool
+	hasAccess, err = executeRule(permissionItem.Rule, params, permissionItem.Data)
+	if err != nil {
+		return false, errors.Wrapf(err, "Executing rule error. Item name is \"%s\".", itemName)
+	}
+
+	if !hasAccess {
+		return hasAccess, nil
 	}
 
 	itemAssignment, ok := assignments[itemName]
 	if ok {
-		if executeRule(itemAssignment.Rule, params, itemAssignment.Data) {
-			return true
+		hasAccess, err = executeRule(itemAssignment.Rule, params, itemAssignment.Data)
+		if err != nil {
+			return false, errors.Wrapf(
+				err,
+				"Executing rule error for assignment. Item name is \"%s\".",
+				itemName,
+			)
+		}
+
+		if hasAccess {
+			return true, nil
 		}
 	}
 
 	parents, err := getParents(itemName)
 	if err != nil {
-		return false
+		return false, errors.Wrapf(err, "Get auth item parents error. Item name is \"%s\"", itemName)
 	}
 
 	for _, parentItem := range parents {
-		if checkAccessRecursive(userId, parentItem, params, assignments) {
-			return true
+		hasAccess, err = checkAccessRecursive(userId, parentItem, params, assignments)
+		if err != nil {
+			return false, errors.Wrapf(
+				err,
+				"Parent rule execution error. Item name is \"%s\". Parent name is \"%s\"",
+				itemName,
+				parentItem,
+			)
+		}
+
+		if hasAccess {
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
+// return permission item with rule and data or error in case of item doesn`t exist
 func getPermissionItem(name string) (*PermissionItem, error) {
 	allPermissionItems := GetAllPermissionItems()
 	permissionItem, ok := allPermissionItems[name]
@@ -156,6 +208,7 @@ func getPermissionItem(name string) (*PermissionItem, error) {
 	return &permissionItem, nil
 }
 
+// return all auth item parents or error in case of parent doesn`t exist
 func getParents(childName string) (ItemParents, error) {
 	allParents := GetAllParents()
 	itemParents, ok := allParents[childName]
@@ -166,67 +219,94 @@ func getParents(childName string) (ItemParents, error) {
 	return itemParents, nil
 }
 
+// execute auth item rule with user or role parameters
 func executeRule(rule Rule, params *checkingParams, data string) (bool, error) {
 	if len(rule.paramsKey) == 0 || len(rule.Data) == 0 {
 		return true, nil
 	}
 
-	if len(data) == 0 {
-		return false, nil
-	}
-
 	switch rule.paramsKey {
 	case "pid":
-		for _, userId := range rule.Data {
-			checkingUserId, err := strconv.Atoi(userId)
-			if err != nil {
-				return false, err
-			}
-			if checkingUserId == params.userId {
-				return true, nil
-			}
+		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.userId)
+		if err != nil {
+			return false, errors.Wrap(err, "Param name is \"pid\"")
 		}
 
-		return false, nil
+		return hasAccess, nil
 	case "region":
-		for _, region := range rule.Data {
-			checkingRegion, err := strconv.Atoi(region)
-			if err != nil {
-				return false, err
-			}
-			if checkingRegion == params.region {
-				return true, nil
-			}
+		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.region)
+		if err != nil {
+			return false, errors.Wrap(err, "Param name is\"region\"")
 		}
 
-		return false, nil
+		return hasAccess, nil
 	case "project":
-		for _, project := range rule.Data {
-			checkingProject, err := strconv.Atoi(project)
-			if err != nil {
-				return false, err
-			}
-			if checkingProject == params.project {
-				return true, nil
-			}
+		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.project)
+		if err != nil {
+			return false, errors.Wrap(err, "Param name is \"project\"")
 		}
 
-		return false, nil
+		return hasAccess, nil
 	case "isCommercial":
-		for _, isCommercial := range rule.Data {
-			checkingIsCommercial := isCommercial == "1"
-
-			if checkingIsCommercial == params.isCommercial {
-				return true, nil
-			}
+		hasAccess, err := executeBooleanInArrayRule(rule.Data, params.isCommercial)
+		if err != nil {
+			return false, errors.Wrap(err, "Param name is \"isCommercial\"")
 		}
 
-		return false, nil
+		return hasAccess, nil
 	default:
-		return false, nil
+		// @TODO 5
+		if len(data) == 0 {
+			return false, nil
+		}
+
+		hasAccess, err := executeStringInArrayRule(rule.Data, data)
+		if err == nil {
+			return false, errors.Wrapf(err, "String param execution error.")
+		}
+
+		return hasAccess, nil
 	}
 
-	// @TODO check another cases (ex, paramsKey = "name") - general logic
+	return false, nil
+}
+
+// execute in array rule for an integer param
+func executeIntegerInArrayRule(data []string, value int) (bool, error) {
+	for _, item := range data {
+		integerItem, err := strconv.Atoi(item)
+		if err != nil {
+			return false, errors.Wrapf(err, "Executing rule for integer value error.")
+		}
+
+		if integerItem == value {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// execute in array rule for a boolean param
+func executeBooleanInArrayRule(data []string, value bool) (bool, error) {
+	for _, item := range data {
+		booleanItem := item == "1"
+
+		if booleanItem == value {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// execute in array rule for a string param
+func executeStringInArrayRule(data []string, value string) (bool, error) {
+	for _, item := range data {
+		if item == value {
+			return true, nil
+		}
+	}
 
 	return false, nil
 }

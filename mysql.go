@@ -21,8 +21,7 @@ type MySQLConnectionConfig struct {
 	} `yaml:"parameters"`
 }
 
-// @TODO Это все правила из таблицы
-// Нужно найти источники добавления новых правил, сделать поле в таблице с правилами в формате json
+// @TODO 2
 var rulesDictionary = map[string]string{
 	"a:2:{s:9:\"paramsKey\";s:12:\"isCommercial\";s:4:\"Data\";a:1:{i:0;i:0;}}":     "{\"paramsKey\":\"isCommercial\",\"Data\":[\"0\"]}",
 	"a:2:{s:9:\"paramsKey\";s:12:\"isCommercial\";s:4:\"Data\";a:1:{i:0;i:1;}}":     "{\"paramsKey\":\"isCommercial\",\"Data\":[\"1\"]}",
@@ -272,6 +271,7 @@ func getAssignmentsFromDb() (Assignments, error) {
 	return result, err
 }
 
+// @TODO 1
 func getPermissionItemsFromDb() (PermissionItems, error) {
 	res, err := mysql.Query(
 		"SELECT IFNULL(`paramsKey`, ''), " +
@@ -306,7 +306,7 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 		}
 
 		var rule Rule
-		rule, currentErr = unmarshalRule(currentRule)
+		rule, currentErr = getRuleFromSerialized(currentRule)
 		if currentErr != nil {
 			err = errors.Wrapf(err, "Rule json decode error. Rule was \"%s\"", currentRule)
 			continue
@@ -323,6 +323,7 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 	return items, err
 }
 
+// @TODO 1
 func getParentsFromDb() (AllParents, error) {
 	res, err := mysql.Query("SELECT `child`, `parent` FROM `auth_item_child`")
 
@@ -350,7 +351,7 @@ func getParentsFromDb() (AllParents, error) {
 	return parents, nil
 }
 
-func unmarshalRule(rule string) (Rule, error) {
+func getRuleFromSerialized(rule string) (Rule, error) {
 	jsonRule, isExists := rulesDictionary[rule]
 	if !isExists {
 		return Rule{}, nil
@@ -359,9 +360,5 @@ func unmarshalRule(rule string) (Rule, error) {
 	result := Rule{}
 	err := json.Unmarshal([]byte(jsonRule), &result)
 
-	if err != nil {
-		return Rule{}, err
-	}
-
-	return result, nil
+	return result, err
 }
