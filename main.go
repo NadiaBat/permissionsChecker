@@ -38,7 +38,10 @@ func main() {
 		log.Fatal(errors.Wrap(err, "Mysql error."))
 	}
 
-	RefreshCache()
+	err = RefreshCache()
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Cache refreshing failed"))
+	}
 
 	server := Server{}
 	server.Serve()

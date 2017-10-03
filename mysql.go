@@ -191,10 +191,23 @@ func (config MySQLConnectionConfig) GetDSN() string {
 	)
 }
 
-func RefreshCache() {
-	RefreshAssignments()
-	RefreshPermissionItems()
-	RefreshParents()
+func RefreshCache() error {
+	err := RefreshAssignments()
+	if err != nil {
+		return errors.Wrap(err, "Assignments refreshing failed")
+	}
+
+	err = RefreshPermissionItems()
+	if err != nil {
+		return errors.Wrap(err, "Permission items refreshing failed")
+	}
+
+	err = RefreshParents()
+	if err != nil {
+		return errors.Wrap(err, "Parents refreshing failed")
+	}
+
+	return nil
 }
 
 func RefreshAssignments() error {
@@ -238,12 +251,15 @@ func getAssignmentsFromDb() (Assignments, error) {
 	result := Assignments{}
 	for rows.Next() {
 		var aRow AssignmentRow
+		var rule string
 		err = rows.Scan(
 			&aRow.ItemName,
 			&aRow.UserId,
-			&aRow.Rule,
+			&rule,
 			&aRow.Data,
 		)
+
+		// @TODO !!!! rule (string) to Rule
 		if err != nil {
 			errors.Wrapf(err, "Assignment row scanning error.")
 		}
@@ -274,7 +290,7 @@ func getAssignmentsFromDb() (Assignments, error) {
 // @TODO 1
 func getPermissionItemsFromDb() (PermissionItems, error) {
 	res, err := mysql.Query(
-		"SELECT IFNULL(`paramsKey`, ''), " +
+		"SELECT IFNULL(`name`, ''), " +
 			"IFNULL(`type`, 0), " +
 			"IFNULL(`biz_rule`, ''), " +
 			"IFNULL(`Data`, '') " +
@@ -353,6 +369,7 @@ func getParentsFromDb() (AllParents, error) {
 
 func getRuleFromSerialized(rule string) (Rule, error) {
 	jsonRule, isExists := rulesDictionary[rule]
+	fmt.Println(jsonRule)
 	if !isExists {
 		return Rule{}, nil
 	}
