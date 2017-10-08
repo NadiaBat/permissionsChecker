@@ -13,7 +13,6 @@ type Rule struct {
 type Assignment struct {
 	ItemName string
 	Rule     Rule
-	Data     string
 }
 
 // grouped by item paramsKey auth assignments
@@ -29,7 +28,6 @@ type PermissionItem struct {
 	Name     string
 	ItemType int
 	Rule     Rule
-	Data     string
 }
 
 type PermissionItems map[string]PermissionItem
@@ -38,7 +36,6 @@ type AssignmentRow struct {
 	UserId   int
 	ItemName string
 	Rule     Rule
-	Data     string
 }
 
 type ItemParents []string

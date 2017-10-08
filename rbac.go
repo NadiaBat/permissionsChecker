@@ -18,6 +18,7 @@ type checkingParams struct {
 	region       int
 	project      int
 	isCommercial bool
+	stringParams map[string]string
 }
 
 type Permissions []*Permission
@@ -148,7 +149,7 @@ func checkAccessRecursive(
 	}
 
 	var hasAccess bool
-	hasAccess, err = executeRule(permissionItem.Rule, params, permissionItem.Data)
+	hasAccess, err = executeRule(permissionItem.Rule, params)
 	if err != nil {
 		return false, errors.Wrapf(err, "Executing rule error. Item name is \"%s\".", itemName)
 	}
@@ -159,7 +160,7 @@ func checkAccessRecursive(
 
 	itemAssignment, ok := assignments[itemName]
 	if ok {
-		hasAccess, err = executeRule(itemAssignment.Rule, params, itemAssignment.Data)
+		hasAccess, err = executeRule(itemAssignment.Rule, params)
 		if err != nil {
 			return false, errors.Wrapf(
 				err,
@@ -220,7 +221,8 @@ func getParents(childName string) (ItemParents, error) {
 }
 
 // execute auth item rule with user or role parameters
-func executeRule(rule Rule, params *checkingParams, data string) (bool, error) {
+// @TODO 6
+func executeRule(rule Rule, params *checkingParams) (bool, error) {
 	if len(rule.paramsKey) == 0 || len(rule.Data) == 0 {
 		return true, nil
 	}
@@ -256,11 +258,12 @@ func executeRule(rule Rule, params *checkingParams, data string) (bool, error) {
 		return hasAccess, nil
 	default:
 		// @TODO 5
-		if len(data) == 0 {
-			return false, nil
+		if len(rule.Data) == 0 {
+			_, ok := params.stringParams[rule.paramsKey]
+			return ok, nil
 		}
 
-		hasAccess, err := executeStringInArrayRule(rule.Data, data)
+		hasAccess, err := executeStringInArrayRule(rule.Data, params.stringParams[rule.paramsKey])
 		if err == nil {
 			return false, errors.Wrapf(err, "String param execution error.")
 		}

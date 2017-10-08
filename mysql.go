@@ -239,7 +239,6 @@ func getAssignmentsFromDb() (Assignments, error) {
 	rows, err := mysql.Query(
 		"SELECT IFNULL(`item_name`, ''), " +
 			"IFNULL(`user_id`, 0), " +
-			"IFNULL(`biz_rule`, ''), " +
 			"IFNULL(`Data`, '') " +
 			"FROM `auth_assignment`",
 	)
@@ -249,17 +248,17 @@ func getAssignmentsFromDb() (Assignments, error) {
 	}
 
 	result := Assignments{}
+	var currentRule string
+	var rule Rule
+
 	for rows.Next() {
 		var aRow AssignmentRow
-		var rule string
 		err = rows.Scan(
 			&aRow.ItemName,
 			&aRow.UserId,
-			&rule,
-			&aRow.Data,
+			&currentRule,
 		)
 
-		// @TODO !!!! rule (string) to Rule
 		if err != nil {
 			errors.Wrapf(err, "Assignment row scanning error.")
 		}
@@ -277,10 +276,14 @@ func getAssignmentsFromDb() (Assignments, error) {
 			}
 		}
 
+		rule, err = getRuleFromSerialized(currentRule)
+		if err != nil {
+			return nil,errors.Wrapf(err, "Unserialize currentRule failed. Rule was \"%s\"", currentRule)
+		}
+
 		result[aRow.UserId].Items[aRow.ItemName] = Assignment{
 			ItemName: aRow.ItemName,
-			Rule:     aRow.Rule,
-			Data:     aRow.Data,
+			Rule:     rule,
 		}
 	}
 
@@ -292,7 +295,6 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 	res, err := mysql.Query(
 		"SELECT IFNULL(`name`, ''), " +
 			"IFNULL(`type`, 0), " +
-			"IFNULL(`biz_rule`, ''), " +
 			"IFNULL(`Data`, '') " +
 			"FROM `auth_item`",
 	)
@@ -304,13 +306,14 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 	currentName := ""
 	currentType := 0
 	currentRule := ""
-	currentData := ""
+
+	var rule Rule
 
 	items := PermissionItems{}
 
 	for res.Next() {
 		var currentErr error
-		currentErr = res.Scan(&currentName, &currentType, &currentRule, &currentData)
+		currentErr = res.Scan(&currentName, &currentType, &currentRule)
 		if currentErr != nil {
 			err = errors.Wrap(err, "Auth item row scanning error.")
 			continue
@@ -321,7 +324,6 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 			continue
 		}
 
-		var rule Rule
 		rule, currentErr = getRuleFromSerialized(currentRule)
 		if currentErr != nil {
 			err = errors.Wrapf(err, "Rule json decode error. Rule was \"%s\"", currentRule)
@@ -331,8 +333,7 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 		items[currentName] = PermissionItem{
 			Name:     currentName,
 			ItemType: currentType,
-			Rule:     rule,
-			Data:     currentData,
+			Rule: rule,
 		}
 	}
 

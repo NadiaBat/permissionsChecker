@@ -1,4 +1,4 @@
-host: '192.168.137.154'
+host: '192.168.134.99'
 port: 3306
 base: 'ngs_regionnews'
 user: 'ngs_regionnews'

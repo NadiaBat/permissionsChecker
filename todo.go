@@ -12,3 +12,4 @@ package main
 // 4. Don`t have to make an async checking. Only for several users (unlikely case).
 // 		Check implementing time for both.
 // 5. Check, what kind of data, may be serialized string with parameters.
+// 6. May be don`t hav to use differrent logic for all types (boolean, integer, string, etc)
