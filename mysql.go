@@ -278,7 +278,7 @@ func getAssignmentsFromDb() (Assignments, error) {
 
 		rule, err = getRuleFromSerialized(currentRule)
 		if err != nil {
-			return nil,errors.Wrapf(err, "Unserialize currentRule failed. Rule was \"%s\"", currentRule)
+			return nil, errors.Wrapf(err, "Unserialize currentRule failed. Rule was \"%s\"", currentRule)
 		}
 
 		result[aRow.UserId].Items[aRow.ItemName] = Assignment{
@@ -333,7 +333,7 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 		items[currentName] = PermissionItem{
 			Name:     currentName,
 			ItemType: currentType,
-			Rule: rule,
+			Rule:     rule,
 		}
 	}
 

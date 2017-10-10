@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"strconv"
 	"sync"
@@ -139,13 +138,9 @@ func checkAccessRecursive(
 ) (bool, error) {
 	var err error
 	var permissionItem *PermissionItem
-	permissionItem, err = getPermissionItem(itemName)
-	if err != nil {
-		return false, errors.Wrapf(
-			err,
-			"Getting permission item error. Item name is \"%s\".",
-			itemName,
-		)
+	permissionItem = getPermissionItem(itemName)
+	if permissionItem == nil {
+		return false, err
 	}
 
 	var hasAccess bool
@@ -174,9 +169,9 @@ func checkAccessRecursive(
 		}
 	}
 
-	parents, err := getParents(itemName)
-	if err != nil {
-		return false, errors.Wrapf(err, "Get auth item parents error. Item name is \"%s\"", itemName)
+	parents := getParents(itemName)
+	if parents == nil {
+		return false, err
 	}
 
 	for _, parentItem := range parents {
@@ -199,25 +194,25 @@ func checkAccessRecursive(
 }
 
 // return permission item with rule and data or error in case of item doesn`t exist
-func getPermissionItem(name string) (*PermissionItem, error) {
+func getPermissionItem(name string) *PermissionItem {
 	allPermissionItems := GetAllPermissionItems()
 	permissionItem, ok := allPermissionItems[name]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("There is no permission item %s", name))
+		return nil
 	}
 
-	return &permissionItem, nil
+	return &permissionItem
 }
 
 // return all auth item parents or error in case of parent doesn`t exist
-func getParents(childName string) (ItemParents, error) {
+func getParents(childName string) ItemParents {
 	allParents := GetAllParents()
 	itemParents, ok := allParents[childName]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("There is no parents for item %s", childName))
+		return nil
 	}
 
-	return itemParents, nil
+	return itemParents
 }
 
 // execute auth item rule with user or role parameters
