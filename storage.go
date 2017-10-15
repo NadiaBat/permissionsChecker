@@ -5,7 +5,7 @@ import (
 )
 
 type Rule struct {
-	paramsKey string
+	ParamsKey string
 	Data      []string
 }
 
@@ -15,7 +15,7 @@ type Assignment struct {
 	Rule     Rule
 }
 
-// grouped by item paramsKey auth assignments
+// grouped by item ParamsKey auth assignments
 type UserAssignment struct {
 	UserId int
 	Items  map[string]Assignment
@@ -77,7 +77,7 @@ func GetAllParents() AllParents {
 All auth Data:
 1. From auth_item: items => item, ...
 2. From auth_item_child: parents[child][] => parent, ...
-3. From auth_assignments: assignments[user][item paramsKey] => assignment
+3. From auth_assignments: assignments[user][item ParamsKey] => assignment
 
 Грузить все данные не нужно в storage, нужны данныые только для пользователя
 

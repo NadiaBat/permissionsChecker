@@ -218,11 +218,11 @@ func getParents(childName string) ItemParents {
 // execute auth item rule with user or role parameters
 // @TODO 6
 func executeRule(rule Rule, params *checkingParams) (bool, error) {
-	if len(rule.paramsKey) == 0 || len(rule.Data) == 0 {
+	if len(rule.ParamsKey) == 0 || len(rule.Data) == 0 {
 		return true, nil
 	}
 
-	switch rule.paramsKey {
+	switch rule.ParamsKey {
 	case "pid":
 		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.userId)
 		if err != nil {
@@ -254,11 +254,11 @@ func executeRule(rule Rule, params *checkingParams) (bool, error) {
 	default:
 		// @TODO 5
 		if len(rule.Data) == 0 {
-			_, ok := params.stringParams[rule.paramsKey]
+			_, ok := params.stringParams[rule.ParamsKey]
 			return ok, nil
 		}
 
-		hasAccess, err := executeStringInArrayRule(rule.Data, params.stringParams[rule.paramsKey])
+		hasAccess, err := executeStringInArrayRule(rule.Data, params.stringParams[rule.ParamsKey])
 		if err == nil {
 			return false, errors.Wrapf(err, "String param execution error.")
 		}
