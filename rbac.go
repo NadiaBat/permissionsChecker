@@ -28,7 +28,7 @@ type Checker struct {
 }
 
 // @TODO 3
-func BulkCheck(userId int, actions []string, additionalParams map[string]string) (Permissions, error) {
+func BulkCheck(userId int, actions []string, additionalParams AdditionalParams) (Permissions, error) {
 	checker := &Checker{
 		permissions: make(Permissions, len(actions)),
 	}
@@ -73,22 +73,14 @@ func BulkCheck(userId int, actions []string, additionalParams map[string]string)
 }
 
 // return checking params from additional params
-func getCheckingParams(userId int, additionalParams map[string]string) (*checkingParams, error) {
+func getCheckingParams(userId int, additionalParams AdditionalParams) (*checkingParams, error) {
 	params := checkingParams{userId: userId, region: 0, project: 0}
-	var err error
-	for name, value := range additionalParams {
-		switch name {
-		case "region":
-			params.region, err = strconv.Atoi(value)
-		case "project":
-			params.project, err = strconv.Atoi(value)
-		default:
-			continue
-		}
-	}
 
-	if err != nil {
-		return nil, err
+	if additionalParams.region > 0 {
+		params.region = additionalParams.region
+	}
+	if additionalParams.project > 0 {
+		params.project = additionalParams.project
 	}
 
 	return &params, nil
