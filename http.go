@@ -13,10 +13,6 @@ import (
 
 type Server struct{}
 type handler struct{}
-type AdditionalParams struct{
-	region  int
-	project int
-}
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
@@ -72,16 +68,16 @@ func handlerCheck(r *http.Request) ([]byte, error) {
 
 func getParams(r *http.Request) (int, []string, AdditionalParams, error) {
 	queryParams := r.URL.Query()
-	var additionalParams AdditionalParams
+	additionalParams := AdditionalParams{}
 
 	actions := queryParams["actions[]"]
 	if actions == nil || len(actions) == 0 {
-		return 0, nil, additionalParams, errors.New("Обязательный параметр actions должен быть не пустым массивом.")
+		return 0, nil, additionalParams, errors.New("Param actions is required.")
 	}
 
 	userFromQuery := queryParams["userId"]
 	if userFromQuery == nil {
-		return 0, actions, additionalParams, errors.New("Не задан обязательный параметр userId.")
+		return 0, actions, additionalParams, errors.New("Param userId is required.")
 	}
 
 	userId, err := strconv.Atoi(userFromQuery[0])
@@ -90,22 +86,27 @@ func getParams(r *http.Request) (int, []string, AdditionalParams, error) {
 	}
 
 	if userId == 0 {
-		return 0, actions, additionalParams, errors.New("User can`t be 0.")
+		return 0, actions, additionalParams, errors.New("Param userId can`t be 0.")
 	}
 
-	regionId, ok := queryParams["params[region]"]
-	if ok {
+	if regionId, ok := queryParams["params[region]"]; ok {
 		additionalParams.region, err = strconv.Atoi(regionId[0])
 		if err != nil {
 			return userId, actions, additionalParams, errors.Wrapf(err, "Region must be integer.")
 		}
 	}
 
-	projectId, ok := queryParams["params[project]"]
-	if ok {
+	if projectId, ok := queryParams["params[project]"]; ok {
 		additionalParams.project, err = strconv.Atoi(projectId[0])
 		if err != nil {
 			return userId, actions, additionalParams, errors.Wrapf(err, "Region must be integer.")
+		}
+	}
+
+	if isCommercial, ok := queryParams["params[isCommercial]"]; ok {
+		additionalParams.isCommercial, err = strconv.ParseBool(isCommercial[0])
+		if err != nil {
+			return userId, actions, additionalParams, errors.Wrapf(err, "Commercial status must be 1 or 0.")
 		}
 	}
 

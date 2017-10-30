@@ -107,16 +107,19 @@ func getAssignmentsFromDb() (Assignments, error) {
 			"FROM `auth_assignment`",
 	)
 
+	result := Assignments{}
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return result, nil
+		}
 		return nil, errors.Wrap(err, "Get all users assignments failed.")
 	}
 
-	result := Assignments{}
 	var currentRule string
-	var rule Rule
+	rule := Rule{}
 
 	for rows.Next() {
-		var aRow AssignmentRow
+		aRow := AssignmentRow{}
 		err = rows.Scan(
 			&aRow.ItemName,
 			&aRow.UserId,
@@ -171,7 +174,7 @@ func getPermissionItemsFromDb() (PermissionItems, error) {
 	currentType := 0
 	currentRule := ""
 
-	var rule Rule
+	rule := Rule{}
 
 	items := PermissionItems{}
 
@@ -244,7 +247,6 @@ func getRuleFromSerialized(rule string) (Rule, error) {
 	}
 
 	key, ok := result["paramsKey"].(string)
-
 	if !ok {
 		return Rule{}, err
 	}

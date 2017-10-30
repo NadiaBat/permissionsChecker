@@ -13,3 +13,6 @@ package main
 // 		Check implementing time for both.
 // 5. Check, what kind of data, may be serialized string with parameters.
 // 6. May be don`t have to use differrent logic for all types (boolean, integer, string, etc)
+
+// 7. Remove mutexes https://godoc.org/golang.org/x/sync/syncmap
+// 8. Remove global var

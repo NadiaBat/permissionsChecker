@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/pkg/errors"
 	"strconv"
-	"sync"
 )
 
 type Permission struct {
@@ -12,7 +11,7 @@ type Permission struct {
 	HasAccess  bool
 }
 
-type checkingParams struct {
+type AdditionalParams struct{
 	userId       int
 	region       int
 	project      int
@@ -23,71 +22,39 @@ type checkingParams struct {
 type Permissions []*Permission
 
 type Checker struct {
-	sync.WaitGroup
 	permissions Permissions
 }
 
 // @TODO 3
 func BulkCheck(userId int, actions []string, additionalParams AdditionalParams) (Permissions, error) {
+	additionalParams.userId = userId
+
+	// @TODO 4
 	checker := &Checker{
 		permissions: make(Permissions, len(actions)),
 	}
 
-	params, err := getCheckingParams(userId, additionalParams)
-	if err != nil {
-		return nil, errors.Wrap(err, "Не удалось выполнить проверку.")
-	}
-
-	// @TODO 4
-	var errs []error
+	var err error
 	for _, action := range actions {
-		checker.Add(1)
-
 		permission := &Permission{UserId: userId, ActionName: action}
-		go func(permission *Permission, errs *[]error) {
-			var checkingErr error
-			permission.HasAccess, checkingErr = checkAccess(userId, permission.ActionName, params)
+		permission.HasAccess, err = checkAccess(userId, permission.ActionName, &additionalParams)
 
-			if checkingErr != nil {
-				checkingErr = errors.Wrapf(
-					checkingErr,
-					"Can`t execute checking for userId=%d, actionName=%s",
-					permission.UserId,
-					permission.ActionName,
-				)
-
-				*errs = append(*errs, checkingErr)
-			}
-			checker.permissions = append(checker.permissions, permission)
-
-			checker.Done()
-		}(permission, &errs)
-	}
-
-	checker.Wait()
-	if len(errs) > 0 {
-		return checker.permissions, errs[0]
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"Can`t execute checking for userId=%d, actionName=%s",
+				permission.UserId,
+				permission.ActionName,
+			)
+		}
+		checker.permissions = append(checker.permissions, permission)
 	}
 
 	return checker.permissions, nil
 }
 
-// return checking params from additional params
-func getCheckingParams(userId int, additionalParams AdditionalParams) (*checkingParams, error) {
-	params := checkingParams{userId: userId, region: 0, project: 0}
-
-	if additionalParams.region > 0 {
-		params.region = additionalParams.region
-	}
-	if additionalParams.project > 0 {
-		params.project = additionalParams.project
-	}
-
-	return &params, nil
-}
-
 // check access for user and action name
-func checkAccess(userId int, actionName string, params *checkingParams) (bool, error) {
+func checkAccess(userId int, actionName string, params *AdditionalParams) (bool, error) {
 	userAssignments, err := getUserAssignments(userId)
 	if err != nil {
 		return false, errors.Wrapf(
@@ -114,19 +81,17 @@ func checkAccess(userId int, actionName string, params *checkingParams) (bool, e
 // return all user assignments or error in case of user assignments doesn`t exist
 func getUserAssignments(userId int) (map[string]Assignment, error) {
 	allAssignments := GetAllAssignments()
-	userAssignments, ok := allAssignments[userId]
-	if !ok {
-		return nil, errors.New("User assignments doesn`t exists.")
+	if userAssignments, ok := allAssignments[userId]; ok {
+		return userAssignments.Items, nil
 	}
 
-	return userAssignments.Items, nil
-
+	return nil, errors.New("User assignments doesn`t exists.")
 }
 
 // check access recursive
 // get all parents items for checking item while there is no any parents items or access is permitted
 func checkAccessRecursive(
-	userId int, itemName string, params *checkingParams, assignments map[string]Assignment,
+	userId int, itemName string, params *AdditionalParams, assignments map[string]Assignment,
 ) (bool, error) {
 	var err error
 	var permissionItem *PermissionItem
@@ -135,7 +100,7 @@ func checkAccessRecursive(
 		return false, err
 	}
 
-	var hasAccess bool
+	hasAccess := false
 	hasAccess, err = executeRule(permissionItem.Rule, params)
 	if err != nil {
 		return false, errors.Wrapf(err, "Executing rule error. Item name is \"%s\".", itemName)
@@ -145,8 +110,7 @@ func checkAccessRecursive(
 		return hasAccess, nil
 	}
 
-	itemAssignment, ok := assignments[itemName]
-	if ok {
+	if itemAssignment, ok := assignments[itemName]; ok {
 		hasAccess, err = executeRule(itemAssignment.Rule, params)
 		if err != nil {
 			return false, errors.Wrapf(
@@ -188,12 +152,11 @@ func checkAccessRecursive(
 // return permission item with rule and data or error in case of item doesn`t exist
 func getPermissionItem(name string) *PermissionItem {
 	allPermissionItems := GetAllPermissionItems()
-	permissionItem, ok := allPermissionItems[name]
-	if !ok {
-		return nil
+	if permissionItem, ok := allPermissionItems[name]; ok {
+		return &permissionItem
 	}
 
-	return &permissionItem
+	return nil
 }
 
 // return all auth item parents or error in case of parent doesn`t exist
@@ -209,7 +172,7 @@ func getParents(childName string) ItemParents {
 
 // execute auth item rule with user or role parameters
 // @TODO 6
-func executeRule(rule Rule, params *checkingParams) (bool, error) {
+func executeRule(rule Rule, params *AdditionalParams) (bool, error) {
 	if len(rule.ParamsKey) == 0 || len(rule.Data) == 0 {
 		return true, nil
 	}

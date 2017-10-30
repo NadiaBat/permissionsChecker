@@ -17,6 +17,7 @@ type user struct {
 	fio string
 }
 
+// @TODO 8
 var (
 	mysql *sql.DB
 )
