@@ -2,17 +2,23 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
+	"github.com/pkg/errors"
+	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type Server struct{}
 type handler struct{}
+
+type paramsSet struct {
+	UserId           int              `json:"userId"`
+	Action           string           `json:"action"`
+	AdditionalParams AdditionalParams `json:"params"`
+}
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
@@ -47,68 +53,47 @@ func (s *Server) Shutdown(server http.Server) {
 }
 
 func handlerCheck(r *http.Request) ([]byte, error) {
-	userId, actions, additionalParams, err := getParams(r)
+	sets, err := getParams(r)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Can`t get AdditionalParams.")
 	}
 
-	permissions, err := BulkCheck(userId, actions, additionalParams)
-	if err != nil {
-		return nil, errors.Wrap(err, "Can`t execute bulk checking.")
+	permissions := Permissions{}
+	for _, params := range sets {
+		res, err := checkOne(params.UserId, params.Action, params.AdditionalParams)
+		if err != nil {
+			return nil, errors.Wrap(err, "Checking error.")
+		}
+
+		permissions = append(permissions, &res)
 	}
 
 	result, err := json.Marshal(permissions)
 	if err != nil {
-		return result, errors.Wrap(err, "Permissions object "+
-			"to json marshal failed")
+		return nil, errors.Wrap(err, "Response encoding error.")
 	}
 
 	return result, err
 }
 
-func getParams(r *http.Request) (int, []string, AdditionalParams, error) {
-	queryParams := r.URL.Query()
-	additionalParams := AdditionalParams{}
-
-	actions := queryParams["actions[]"]
-	if actions == nil || len(actions) == 0 {
-		return 0, nil, additionalParams, errors.New("Param actions is required.")
-	}
-
-	userFromQuery := queryParams["userId"]
-	if userFromQuery == nil {
-		return 0, actions, additionalParams, errors.New("Param userId is required.")
-	}
-
-	userId, err := strconv.Atoi(userFromQuery[0])
+func getParams(r *http.Request) ([]paramsSet, error) {
+	var params []paramsSet
+	hash := md5.New()
+	reader := io.TeeReader(r.Body, hash)
+	err := json.NewDecoder(reader).Decode(&params)
 	if err != nil {
-		return 0, actions, additionalParams, errors.Wrap(err, "Can`t get userId.")
+		return params, errors.Wrap(err, "Request body JSON decoding error.")
 	}
 
-	if userId == 0 {
-		return 0, actions, additionalParams, errors.New("Param userId can`t be 0.")
+	return params, nil
+}
+
+func checkOne(userId int, action string, additionalParams AdditionalParams) (Permission, error) {
+	permission, err := Check(userId, action, additionalParams)
+	if err != nil {
+		return Permission{}, errors.Wrap(err, "Can`t execute bulk checking.")
 	}
 
-	if regionId, ok := queryParams["params[region]"]; ok {
-		additionalParams.region, err = strconv.Atoi(regionId[0])
-		if err != nil {
-			return userId, actions, additionalParams, errors.Wrapf(err, "Region must be integer.")
-		}
-	}
-
-	if projectId, ok := queryParams["params[project]"]; ok {
-		additionalParams.project, err = strconv.Atoi(projectId[0])
-		if err != nil {
-			return userId, actions, additionalParams, errors.Wrapf(err, "Region must be integer.")
-		}
-	}
-
-	if isCommercial, ok := queryParams["params[isCommercial]"]; ok {
-		additionalParams.isCommercial, err = strconv.ParseBool(isCommercial[0])
-		if err != nil {
-			return userId, actions, additionalParams, errors.Wrapf(err, "Commercial status must be 1 or 0.")
-		}
-	}
-
-	return userId, actions, additionalParams, nil
+	return permission, nil
 }

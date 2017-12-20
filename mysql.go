@@ -3,9 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/NadiaBat/permissionsChecker/phpserialize"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"github.com/NadiaBat/permissionsChecker/phpserialize"
 )
 
 type MySQLConnectionConfig struct {

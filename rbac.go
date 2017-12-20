@@ -11,12 +11,12 @@ type Permission struct {
 	HasAccess  bool
 }
 
-type AdditionalParams struct{
-	userId       int
-	region       int
-	project      int
-	isCommercial bool
-	stringParams map[string]string
+type AdditionalParams struct {
+	UserId       int  `json:"userId"`
+	Region       int  `json:"regionId"`
+	Project      int  `json:"projectId"`
+	IsCommercial bool `json:"isCommercial"`
+	StringParams map[string]string
 }
 
 type Permissions []*Permission
@@ -26,31 +26,23 @@ type Checker struct {
 }
 
 // @TODO 3
-func BulkCheck(userId int, actions []string, additionalParams AdditionalParams) (Permissions, error) {
-	additionalParams.userId = userId
-
-	// @TODO 4
-	checker := &Checker{
-		permissions: make(Permissions, len(actions)),
-	}
+func Check(userId int, action string, additionalParams AdditionalParams) (Permission, error) {
+	additionalParams.UserId = userId
 
 	var err error
-	for _, action := range actions {
-		permission := &Permission{UserId: userId, ActionName: action}
-		permission.HasAccess, err = checkAccess(userId, permission.ActionName, &additionalParams)
+	permission := Permission{UserId: userId, ActionName: action}
+	permission.HasAccess, err = checkAccess(userId, permission.ActionName, &additionalParams)
 
-		if err != nil {
-			return nil, errors.Wrapf(
-				err,
-				"Can`t execute checking for userId=%d, actionName=%s",
-				permission.UserId,
-				permission.ActionName,
-			)
-		}
-		checker.permissions = append(checker.permissions, permission)
+	if err != nil {
+		return Permission{}, errors.Wrapf(
+			err,
+			"Can`t execute checking for userId=%d, actionName=%s",
+			permission.UserId,
+			permission.ActionName,
+		)
 	}
 
-	return checker.permissions, nil
+	return permission, nil
 }
 
 // check access for user and action name
@@ -179,28 +171,28 @@ func executeRule(rule Rule, params *AdditionalParams) (bool, error) {
 
 	switch rule.ParamsKey {
 	case "pid":
-		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.userId)
+		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.UserId)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is \"pid\"")
 		}
 
 		return hasAccess, nil
 	case "region":
-		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.region)
+		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.Region)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is\"region\"")
 		}
 
 		return hasAccess, nil
 	case "project":
-		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.project)
+		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.Project)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is \"project\"")
 		}
 
 		return hasAccess, nil
 	case "isCommercial":
-		hasAccess, err := executeBooleanInArrayRule(rule.Data, params.isCommercial)
+		hasAccess, err := executeBooleanInArrayRule(rule.Data, params.IsCommercial)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is \"isCommercial\"")
 		}
@@ -209,11 +201,11 @@ func executeRule(rule Rule, params *AdditionalParams) (bool, error) {
 	default:
 		// @TODO 5
 		if len(rule.Data) == 0 {
-			_, ok := params.stringParams[rule.ParamsKey]
+			_, ok := params.StringParams[rule.ParamsKey]
 			return ok, nil
 		}
 
-		hasAccess, err := executeStringInArrayRule(rule.Data, params.stringParams[rule.ParamsKey])
+		hasAccess, err := executeStringInArrayRule(rule.Data, params.StringParams[rule.ParamsKey])
 		if err == nil {
 			return false, errors.Wrapf(err, "String param execution error.")
 		}
