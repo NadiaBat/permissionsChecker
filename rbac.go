@@ -1,43 +1,51 @@
 package main
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 type Permission struct {
-	UserId     int
+	UserID     int
 	ActionName string
 	HasAccess  bool
 }
 
-type AdditionalParams struct {
-	UserId       int  `json:"userId"`
-	Region       int  `json:"regionId"`
-	Project      int  `json:"projectId"`
-	IsCommercial bool `json:"isCommercial"`
-	StringParams map[string]string
-}
-
 type Permissions []*Permission
+
+type PermissionsAll []Permissions
 
 type Checker struct {
 	permissions Permissions
 }
 
+type Rbac struct {
+	dp *DataProvider
+}
+
+func NewRbac(dp *DataProvider) *Rbac {
+	return &Rbac{
+		dp: dp,
+	}
+}
+
 // @TODO 3
-func Check(userId int, action string, additionalParams AdditionalParams) (Permission, error) {
-	additionalParams.UserId = userId
+func (r *Rbac) Check(UserID int, action string, additionalParams AdditionalParams) (Permission, error) {
+	fmt.Println(UserID)
+	additionalParams.UserID = UserID
+	fmt.Println(additionalParams.UserID)
 
 	var err error
-	permission := Permission{UserId: userId, ActionName: action}
-	permission.HasAccess, err = checkAccess(userId, permission.ActionName, &additionalParams)
+	permission := Permission{UserID: UserID, ActionName: action}
+	permission.HasAccess, err = r.checkAccess(UserID, permission.ActionName, &additionalParams)
 
 	if err != nil {
 		return Permission{}, errors.Wrapf(
 			err,
-			"Can`t execute checking for userId=%d, actionName=%s",
-			permission.UserId,
+			"Can`t execute checking for UserID=%d, actionName=%s",
+			permission.UserID,
 			permission.ActionName,
 		)
 	}
@@ -46,23 +54,23 @@ func Check(userId int, action string, additionalParams AdditionalParams) (Permis
 }
 
 // check access for user and action name
-func checkAccess(userId int, actionName string, params *AdditionalParams) (bool, error) {
-	userAssignments, err := getUserAssignments(userId)
+func (r *Rbac) checkAccess(UserID int, actionName string, params *AdditionalParams) (bool, error) {
+	userAssignments, err := r.getUserAssignments(UserID)
 	if err != nil {
 		return false, errors.Wrapf(
 			err,
 			"Can`t get user assignments. User id is %d. Action name is \"%s\".",
-			userId,
+			UserID,
 			actionName,
 		)
 	}
 
-	hasAccess, err := checkAccessRecursive(userId, actionName, params, userAssignments)
+	hasAccess, err := r.checkAccessRecursive(UserID, actionName, params, userAssignments)
 	if err != nil {
 		return false, errors.Wrapf(
 			err,
 			"Recursive checking access error. User id is %d. Action name is \"%s\".",
-			userId,
+			UserID,
 			actionName,
 		)
 	}
@@ -71,9 +79,9 @@ func checkAccess(userId int, actionName string, params *AdditionalParams) (bool,
 }
 
 // return all user assignments or error in case of user assignments doesn`t exist
-func getUserAssignments(userId int) (map[string]Assignment, error) {
-	allAssignments := GetAllAssignments()
-	if userAssignments, ok := allAssignments[userId]; ok {
+func (r *Rbac) getUserAssignments(UserID int) (map[string]Assignment, error) {
+	allAssignments := r.dp.GetAllAssignments()
+	if userAssignments, ok := allAssignments[UserID]; ok {
 		return userAssignments.Items, nil
 	}
 
@@ -82,18 +90,18 @@ func getUserAssignments(userId int) (map[string]Assignment, error) {
 
 // check access recursive
 // get all parents items for checking item while there is no any parents items or access is permitted
-func checkAccessRecursive(
-	userId int, itemName string, params *AdditionalParams, assignments map[string]Assignment,
+func (r *Rbac) checkAccessRecursive(
+	UserID int, itemName string, params *AdditionalParams, assignments map[string]Assignment,
 ) (bool, error) {
 	var err error
 	var permissionItem *PermissionItem
-	permissionItem = getPermissionItem(itemName)
+	permissionItem = r.getPermissionItem(itemName)
 	if permissionItem == nil {
 		return false, err
 	}
 
 	hasAccess := false
-	hasAccess, err = executeRule(permissionItem.Rule, params)
+	hasAccess, err = r.executeRule(permissionItem.Rule, params)
 	if err != nil {
 		return false, errors.Wrapf(err, "Executing rule error. Item name is \"%s\".", itemName)
 	}
@@ -103,7 +111,7 @@ func checkAccessRecursive(
 	}
 
 	if itemAssignment, ok := assignments[itemName]; ok {
-		hasAccess, err = executeRule(itemAssignment.Rule, params)
+		hasAccess, err = r.executeRule(itemAssignment.Rule, params)
 		if err != nil {
 			return false, errors.Wrapf(
 				err,
@@ -117,13 +125,13 @@ func checkAccessRecursive(
 		}
 	}
 
-	parents := getParents(itemName)
+	parents := r.getParents(itemName)
 	if parents == nil {
 		return false, err
 	}
 
 	for _, parentItem := range parents {
-		hasAccess, err = checkAccessRecursive(userId, parentItem, params, assignments)
+		hasAccess, err = r.checkAccessRecursive(UserID, parentItem, params, assignments)
 		if err != nil {
 			return false, errors.Wrapf(
 				err,
@@ -142,18 +150,18 @@ func checkAccessRecursive(
 }
 
 // return permission item with rule and data or error in case of item doesn`t exist
-func getPermissionItem(name string) *PermissionItem {
-	allPermissionItems := GetAllPermissionItems()
-	if permissionItem, ok := allPermissionItems[name]; ok {
-		return &permissionItem
+func (r *Rbac) getPermissionItem(name string) *PermissionItem {
+	allPermissionItems := r.dp.GetAllPermissions()
+	permissionItem, ok := allPermissionItems[name]
+	if !ok {
+		return nil
 	}
-
-	return nil
+	return &permissionItem
 }
 
 // return all auth item parents or error in case of parent doesn`t exist
-func getParents(childName string) ItemParents {
-	allParents := GetAllParents()
+func (r *Rbac) getParents(childName string) ItemParents {
+	allParents := r.dp.GetAllParents()
 	itemParents, ok := allParents[childName]
 	if !ok {
 		return nil
@@ -164,35 +172,35 @@ func getParents(childName string) ItemParents {
 
 // execute auth item rule with user or role parameters
 // @TODO 6
-func executeRule(rule Rule, params *AdditionalParams) (bool, error) {
+func (r *Rbac) executeRule(rule Rule, params *AdditionalParams) (bool, error) {
 	if len(rule.ParamsKey) == 0 || len(rule.Data) == 0 {
 		return true, nil
 	}
 
 	switch rule.ParamsKey {
 	case "pid":
-		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.UserId)
+		hasAccess, err := r.executeIntegerInArrayRule(rule.Data, params.UserID)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is \"pid\"")
 		}
 
 		return hasAccess, nil
 	case "region":
-		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.Region)
+		hasAccess, err := r.executeIntegerInArrayRule(rule.Data, params.Region)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is\"region\"")
 		}
 
 		return hasAccess, nil
 	case "project":
-		hasAccess, err := executeIntegerInArrayRule(rule.Data, params.Project)
+		hasAccess, err := r.executeIntegerInArrayRule(rule.Data, params.Project)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is \"project\"")
 		}
 
 		return hasAccess, nil
 	case "isCommercial":
-		hasAccess, err := executeBooleanInArrayRule(rule.Data, params.IsCommercial)
+		hasAccess, err := r.executeBooleanInArrayRule(rule.Data, params.IsCommercial)
 		if err != nil {
 			return false, errors.Wrap(err, "Param name is \"isCommercial\"")
 		}
@@ -205,7 +213,7 @@ func executeRule(rule Rule, params *AdditionalParams) (bool, error) {
 			return ok, nil
 		}
 
-		hasAccess, err := executeStringInArrayRule(rule.Data, params.StringParams[rule.ParamsKey])
+		hasAccess, err := r.executeStringInArrayRule(rule.Data, params.StringParams[rule.ParamsKey])
 		if err == nil {
 			return false, errors.Wrapf(err, "String param execution error.")
 		}
@@ -217,7 +225,7 @@ func executeRule(rule Rule, params *AdditionalParams) (bool, error) {
 }
 
 // execute in array rule for an integer param
-func executeIntegerInArrayRule(data []string, value int) (bool, error) {
+func (r *Rbac) executeIntegerInArrayRule(data []string, value int) (bool, error) {
 	for _, item := range data {
 		integerItem, err := strconv.Atoi(item)
 		if err != nil {
@@ -233,7 +241,7 @@ func executeIntegerInArrayRule(data []string, value int) (bool, error) {
 }
 
 // execute in array rule for a boolean param
-func executeBooleanInArrayRule(data []string, value bool) (bool, error) {
+func (r *Rbac) executeBooleanInArrayRule(data []string, value bool) (bool, error) {
 	for _, item := range data {
 		booleanItem := item == "1"
 
@@ -246,7 +254,7 @@ func executeBooleanInArrayRule(data []string, value bool) (bool, error) {
 }
 
 // execute in array rule for a string param
-func executeStringInArrayRule(data []string, value string) (bool, error) {
+func (r *Rbac) executeStringInArrayRule(data []string, value string) (bool, error) {
 	for _, item := range data {
 		if item == value {
 			return true, nil

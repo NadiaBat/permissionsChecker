@@ -1,11 +1,12 @@
 package main
 
 import (
-	"database/sql"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"fmt"
 	"io/ioutil"
 	"log"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 type message struct {
@@ -16,11 +17,6 @@ type user struct {
 	id  int
 	fio string
 }
-
-// @TODO 8
-var (
-	mysql *sql.DB
-)
 
 func main() {
 	configFile, err := ioutil.ReadFile("config.yml")
@@ -34,16 +30,18 @@ func main() {
 		log.Fatal(errors.Wrap(err, "Yaml config decoding error."))
 	}
 
-	mysql, err = NewMySQL(&config)
+	fmt.Println("start")
+	mysql, err := NewMySQL(&config)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Mysql error."))
 	}
 
-	err = RefreshCache()
+	rbacDataProvider := NewDataProvider(mysql)
+	rbac := NewRbac(rbacDataProvider)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Cache refreshing failed"))
 	}
 
 	server := Server{}
-	server.Serve()
+	server.Serve(rbac)
 }

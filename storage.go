@@ -1,9 +1,5 @@
 package main
 
-import (
-	"sync"
-)
-
 type Rule struct {
 	ParamsKey string
 	Data      []string
@@ -17,7 +13,7 @@ type Assignment struct {
 
 // grouped by item ParamsKey auth assignments
 type UserAssignment struct {
-	UserId int
+	UserID int
 	Items  map[string]Assignment
 }
 
@@ -33,7 +29,7 @@ type PermissionItem struct {
 type PermissionItems map[string]PermissionItem
 
 type AssignmentRow struct {
-	UserId   int
+	UserID   int
 	ItemName string
 	Rule     Rule
 }
@@ -41,34 +37,6 @@ type AssignmentRow struct {
 type ItemParents []string
 
 type AllParents map[string]ItemParents
-
-// @TODO 7
-var Cache struct {
-	assignments struct {
-		sync.Mutex
-		data Assignments
-	}
-	permissionItems struct {
-		sync.Mutex
-		data PermissionItems
-	}
-	parents struct {
-		sync.Mutex
-		data AllParents
-	}
-}
-
-func GetAllAssignments() Assignments {
-	return Cache.assignments.data
-}
-
-func GetAllPermissionItems() PermissionItems {
-	return Cache.permissionItems.data
-}
-
-func GetAllParents() AllParents {
-	return Cache.parents.data
-}
 
 /*
 - user assignments: roles list
